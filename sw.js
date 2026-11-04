@@ -1,6 +1,6 @@
 // 웹판 오프라인: 화면 파일을 담아 두고 먼저 쓴다. 새 판이 올라오면 다음에 열 때 바뀐다.
-const VERSION = '0.1.0-acfe431f9d';
-const FILES = ["./","./app.js?v=0.1.0-acfe431f9d","./cards/calendar-logic.js?v=0.1.0-acfe431f9d","./cards/calendar.js?v=0.1.0-acfe431f9d","./cards/clip.js?v=0.1.0-acfe431f9d","./cards/fold.js?v=0.1.0-acfe431f9d","./cards/gcal.js?v=0.1.0-acfe431f9d","./cards/sticky.js?v=0.1.0-acfe431f9d","./cards/teacher.js?v=0.1.0-acfe431f9d","./cards/timetable-logic.js?v=0.1.0-acfe431f9d","./cards/timetable.js?v=0.1.0-acfe431f9d","./cards/today.js?v=0.1.0-acfe431f9d","./cards/ttnote.js?v=0.1.0-acfe431f9d","./icon-192.png","./icon-512.png","./icon.svg?v=0.1.0-acfe431f9d","./local.js?v=0.1.0-acfe431f9d","./manifest.webmanifest?v=0.1.0-acfe431f9d","./sql-wasm.wasm?v=1.13.0","./style.css?v=0.1.0-acfe431f9d"];
+const VERSION = '0.1.0-d12c2ca7d2';
+const FILES = ["./","./app.js?v=0.1.0-d12c2ca7d2","./cards/calendar-logic.js?v=0.1.0-d12c2ca7d2","./cards/calendar.js?v=0.1.0-d12c2ca7d2","./cards/clip.js?v=0.1.0-d12c2ca7d2","./cards/fold.js?v=0.1.0-d12c2ca7d2","./cards/gcal.js?v=0.1.0-d12c2ca7d2","./cards/sticky.js?v=0.1.0-d12c2ca7d2","./cards/teacher.js?v=0.1.0-d12c2ca7d2","./cards/timetable-logic.js?v=0.1.0-d12c2ca7d2","./cards/timetable.js?v=0.1.0-d12c2ca7d2","./cards/today.js?v=0.1.0-d12c2ca7d2","./cards/ttnote.js?v=0.1.0-d12c2ca7d2","./icon-192.png","./icon-512.png","./icon.svg?v=0.1.0-d12c2ca7d2","./local.js?v=0.1.0-d12c2ca7d2","./manifest.webmanifest?v=0.1.0-d12c2ca7d2","./sql-wasm.wasm?v=1.13.0","./style.css?v=0.1.0-d12c2ca7d2"];
 const CACHE = `school-dashboard-${VERSION}`;
 
 self.addEventListener('install', (e) => {

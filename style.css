@@ -745,3 +745,8 @@ body[data-host="web"] #conn:not([data-state="down"]) { display: none; }
   .col-right:has(> #card-memo.folded) > #card-clip:not(.folded) .clip-list { flex: 1 1 0; max-height: none; overflow-y: auto; }
 }
 #sp-redirect { word-break: break-all; }
+
+/* 지금 시각 (날짜 옆) */
+.strip-clock { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.strip.tiles .strip-date .strip-clock { font-size: 17px; }
+@media (min-width: 1200px) { .strip.tiles .strip-date { flex-direction: row; align-items: baseline; gap: 8px; } }

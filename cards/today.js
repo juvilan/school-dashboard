@@ -40,6 +40,16 @@
   }
   if (TEACHER) window.Dash.listen('settings', () => renderDdays());
 
+  // 지금 시각 (윈도우 작업표시줄 시계처럼 "오후 2:35"). 분이 바뀌는 순간에 맞춰 고친다
+  const clockFmt = new Intl.DateTimeFormat('ko-KR', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Seoul' });
+  function clock() {
+    const t = Date.now() - (window.Dash.state.clockOffset || 0);
+    $('strip-clock').textContent = clockFmt.format(t);
+    setTimeout(clock, 60000 - (t % 60000) + 50);
+  }
+  clock();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') $('strip-clock').textContent = clockFmt.format(Date.now() - (window.Dash.state.clockOffset || 0)); });
+
   function render() {
     $('strip-date').textContent = window.CalendarLogic.fromYmd(localDate()).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' });
     const errs = [...(data?.errors || [])];
