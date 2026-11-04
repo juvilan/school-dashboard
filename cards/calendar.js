@@ -10,6 +10,18 @@
   const { ymd, addDays } = L;
   const todayDate = () => L.fromYmd(seoul().ymd); // 학교 기준(서울) 오늘
   let view = 'month';
+  const DRAG_TYPE = 'application/x-dash-todo';
+  async function dropTodo(raw, to) {
+    let d;
+    try { d = JSON.parse(raw); } catch { return; }
+    if (!d?.id || d.from === to) return;
+    $('cal-msg').textContent = '';
+    try {
+      await api('PATCH', `/api/todos/${d.id}`, { rev: d.rev, due: to });
+    } catch (err) {
+      $('cal-msg').textContent = err.status === 409 ? '그 사이 다른 곳에서 이 할 일을 고쳤어요. 다시 옮겨 주세요.' : err.message;
+    }
+  }
   let cursor = todayDate(); // 보고 있는 달/주의 기준일
   let range = null; // { from, to, days, events, errors }
   let loading = null;
@@ -48,12 +60,24 @@
 
   function chip(item, date) {
     const c = document.createElement('div');
-    c.className = `chip ${item.source}`;
+    c.className = `chip ${item.source}${item.done ? ' done' : ''}`;
     // 월간 작은 칸에선 제목만 (할 일 표시·시각은 색 띠와 말풍선으로) — 주간 목록에선 다 보여 준다
     c.textContent = view === 'month' ? item.title
-      : item.source === 'todo' ? `☐ ${item.title}` : `${item.time ? `${item.time} ` : ''}${item.title}`;
+      : item.source === 'todo' ? `${item.done ? '☑' : '☐'} ${item.title}` : `${item.time ? `${item.time} ` : ''}${item.title}`;
     c.title = [item.time ? `${item.time}${item.endTime ? `–${item.endTime}` : ''}` : '', item.title, item.detail].filter(Boolean).join('\n');
     if (item.color) c.style.setProperty('--gc', item.color);
+    // 할 일은 끌어서 다른 날짜 칸에 놓으면 마감일이 바뀐다 (일반 달력처럼)
+    if (item.source === 'todo' && item.todoId) {
+      c.draggable = true;
+      c.classList.add('draggable');
+      c.title += '\n(끌어서 다른 날짜로 옮길 수 있어요)';
+      c.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ id: item.todoId, rev: item.rev, from: date }));
+        e.dataTransfer.effectAllowed = 'move';
+        c.classList.add('dragging');
+      });
+      c.addEventListener('dragend', () => c.classList.remove('dragging'));
+    }
     // 구글 일정은 눌러서 고치기
     if (item.source === 'google' && item.editable) {
       c.classList.add('editable');
@@ -126,6 +150,21 @@
       }
       // 칸을 누르면 그날 창 (일정·할 일 추가)
       cell.addEventListener('click', () => window.Dash.dayEdit?.open({ date: key }));
+      // 할 일을 끌어다 놓기
+      cell.addEventListener('dragover', (e) => {
+        if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        cell.classList.add('drop-target');
+      });
+      cell.addEventListener('dragleave', (e) => { if (!cell.contains(e.relatedTarget)) cell.classList.remove('drop-target'); });
+      cell.addEventListener('drop', (e) => {
+        cell.classList.remove('drop-target');
+        const raw = e.dataTransfer.getData(DRAG_TYPE);
+        if (!raw) return;
+        e.preventDefault();
+        dropTodo(raw, key);
+      });
       grid.append(cell);
     }
   }

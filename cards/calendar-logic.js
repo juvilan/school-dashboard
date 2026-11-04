@@ -33,11 +33,12 @@
       for (let d = fromYmd(s); ymd(d) <= last; d = addDays(d, 1)) put(ymd(d), item);
     }
     for (const t of todos || []) {
-      if (!t.done && t.due && t.due >= from && t.due <= to) put(t.due, { source: 'todo', todoId: t.id, rev: t.rev, title: t.title, detail: '할 일 마감' });
+      // 끝낸 일도 지우지 않고 그 날짜에 남긴다 (화면에서 취소선)
+      if (t.due && t.due >= from && t.due <= to) put(t.due, { source: 'todo', todoId: t.id, rev: t.rev, title: t.title, done: Boolean(t.done), detail: t.done ? '끝낸 할 일' : '할 일 마감' });
     }
     const order = { exam: 0, school: 1, google: 2, todo: 3 };
     // 종류 순서, 같은 종류 안에서는 종일 일정 먼저, 그다음 시각 순
-    for (const k of Object.keys(map)) map[k].sort((a, b) => (order[a.source] ?? 9) - (order[b.source] ?? 9) || (a.time || '').localeCompare(b.time || ''));
+    for (const k of Object.keys(map)) map[k].sort((a, b) => (order[a.source] ?? 9) - (order[b.source] ?? 9) || Number(Boolean(a.done)) - Number(Boolean(b.done)) || (a.time || '').localeCompare(b.time || ''));
     return map;
   }
 

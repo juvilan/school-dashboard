@@ -304,6 +304,11 @@ button.icon { padding: 2px 12px; font-size: 18px; line-height: 1.4; }
 .chip.school { border-color: var(--school); }
 .chip.exam { border-color: var(--exam); font-weight: 600; }
 .chip.todo { border-color: var(--todo); }
+.chip.draggable { cursor: grab; }
+.chip.dragging { opacity: .4; }
+.cal-cell.drop-target, .drop-target { outline: 2px dashed var(--accent); outline-offset: -2px; }
+.chip.todo.done:not(.d-todo-row) { text-decoration: line-through; opacity: .6; }
+.d-todo-row.done .d-todo-title { text-decoration: line-through; color: var(--muted); }
 .chip.google { border-color: var(--google); }
 .chip.more { border: 0; background: transparent; color: var(--muted); padding: 0 1px; font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
@@ -590,7 +595,11 @@ button.d-item { font: inherit; color: inherit; }
 
 /* 날짜 창 안의 할 일 줄 */
 .d-todo-row { display: flex; align-items: center; gap: 6px; }
-.d-todo-row .d-todo-title { flex: 1; }
+.d-todo-row .d-todo-title { flex: 1; text-align: left; cursor: text; }
+.d-todo-row .d-todo-title:hover { text-decoration: underline dotted; }
+.d-todo-edit { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.d-todo-edit input:not([type=date]) { flex: 1 1 10em; min-width: 0; }
+.d-todo-edit .small-btn { margin-top: 0; }
 .d-todo-row button { background: transparent; border: 0; color: inherit; padding: 2px 6px; margin: 0; cursor: pointer; font: inherit; }
 .d-todo-row .d-todo-done:hover { color: var(--ok, #3fb950); }
 .d-todo-row .d-todo-del:hover, .d-todo-row .d-todo-del[data-armed="1"] { color: var(--bad); }
@@ -758,6 +767,11 @@ body[data-host="web"] #conn:not([data-state="down"]) { display: none; }
 .ai-link:hover { border-color: var(--accent); color: var(--accent); }
 .ai-history { max-width: 9.5em; padding: 3px 4px; font-size: 13px; }
 .ai-body { margin-top: 8px; }
+.ai-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; }
+.ai-who { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.ai-plan { margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 11px; }
+.ai-model { padding: 2px 4px; font-size: 13px; }
+.ai-model-tag { display: inline-block; margin: 4px 0 0 6px; font-size: 11px; }
 .ai-setup p { margin: 0 0 8px; }
 .ai-steps { margin: 6px 0 8px; padding-left: 1.4em; line-height: 1.9; }
 .ai-steps .small-btn { margin-top: 0; }

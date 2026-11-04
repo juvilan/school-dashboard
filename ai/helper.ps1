@@ -6,7 +6,7 @@
 # 기능(대화 화면)은 대시보드 쪽에 있고, 이 도우미는 질문을 넘기고 답을 그대로 돌려주는 일만 한다.
 
 $ErrorActionPreference = 'Stop'
-$HelperVersion = 1
+$HelperVersion = 2
 $Port = 47615
 $Dir = Join-Path $env:LOCALAPPDATA 'SchoolDashboardAI'
 $Work = Join-Path $Dir 'work'   # Claude Code 를 이 빈 폴더에서 실행 (다른 폴더의 설정·파일을 보지 않게)
@@ -234,6 +234,7 @@ $Handler = {
           $r.loggedIn = [bool]$j.loggedIn
           $r.authMethod = [string]$j.authMethod
           $r.email = [string]$j.email
+          $r.plan = [string]$j.subscriptionType
         } catch { $r.authError = ($a.err + $a.out).Trim() }
       }
       if ($S.StatusGen -eq $gen) { $S.StatusCache = @{ At = Get-Date; R = $r } }   # 그 사이 로그인·로그아웃이 있었으면 옛 값을 넣지 않음

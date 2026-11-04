@@ -2507,6 +2507,7 @@ data: ${snap}
       var MAX_TITLE = 300;
       var MAX_OPEN = 500;
       var DONE_VISIBLE_DAYS = 3;
+      var DONE_DUE_DAYS = 400;
       function cleanTitle(v) {
         if (typeof v !== "string") throw new UserError2("\uD560 \uC77C\uC744 \uC801\uC5B4 \uC8FC\uC138\uC694.");
         const t = v.replace(/\s+/g, " ").trim();
@@ -2525,7 +2526,7 @@ data: ${snap}
         const q = {
           get: db.prepare("SELECT * FROM todos WHERE id = ?"),
           list: db.prepare(`SELECT id, title, done, due, position, rev, updated_at, done_at, updated_by FROM todos
-                      WHERE done = 0 OR done_at > ? ORDER BY done, CASE WHEN done = 0 THEN position END, done_at DESC`),
+                      WHERE done = 0 OR done_at > ? OR (due IS NOT NULL AND due >= ?) ORDER BY done, CASE WHEN done = 0 THEN position END, done_at DESC`),
           countOpen: db.prepare("SELECT COUNT(*) n FROM todos WHERE done = 0"),
           maxPos: db.prepare("SELECT MAX(position) p FROM todos WHERE done = 0"),
           openOrdered: db.prepare("SELECT id, position FROM todos WHERE done = 0 ORDER BY position"),
@@ -2538,7 +2539,8 @@ data: ${snap}
           clearDone: db.prepare("DELETE FROM todos WHERE done = 1")
         };
         function list() {
-          return q.list.all(Date.now() - DONE_VISIBLE_DAYS * 864e5).map((r) => ({ ...r, done: r.done === 1 }));
+          const dueFrom = new Date(Date.now() - DONE_DUE_DAYS * 864e5).toISOString().slice(0, 10);
+          return q.list.all(Date.now() - DONE_VISIBLE_DAYS * 864e5, dueFrom).map((r) => ({ ...r, done: r.done === 1 }));
         }
         hub.register("todos", list, "read");
         function change(fn) {
@@ -2590,6 +2592,7 @@ data: ${snap}
             const row = mustGet(id);
             if (row.done === 1 === done) return { id, unchanged: true };
             return change(() => {
+              if (!done && q.countOpen.get().n >= MAX_OPEN) throw new UserError2(`\uD560 \uC77C\uC774 ${MAX_OPEN}\uAC1C\uB97C \uB118\uC5C8\uC5B4\uC694. \uB05D\uB0B8 \uC77C\uC744 \uC815\uB9AC\uD574 \uC8FC\uC138\uC694.`);
               const now = Date.now();
               q.setDone.run(done ? 1 : 0, done ? now : null, done ? row.position : nextPos(), now, by, id);
               return { id };
@@ -4674,9 +4677,26 @@ data: ${snap}
     let told = false;
     const save = () => kv.set("google", st).catch(() => {
     });
+    const TOKEN_KEY = "dash-google-token";
+    const keep = (t) => {
+      try {
+        if (t) sessionStorage.setItem(TOKEN_KEY, JSON.stringify(t));
+        else sessionStorage.removeItem(TOKEN_KEY);
+      } catch {
+      }
+    };
     const loaded = kv.get("google").then((v) => {
       if (v?.linked) st = { linked: true, email: v.email || null };
       if (v && "token" in v) save();
+      if (st.linked) {
+        try {
+          const t = JSON.parse(sessionStorage.getItem(TOKEN_KEY));
+          if (t && typeof t.value === "string" && Number.isFinite(t.exp) && t.exp - 6e4 > Date.now() && (t.email || null) === st.email) token = { value: t.value, exp: t.exp };
+          else keep(null);
+        } catch {
+          keep(null);
+        }
+      } else keep(null);
     }, () => {
     });
     const valid = () => Boolean(token && token.exp - 6e4 > Date.now());
@@ -4704,11 +4724,13 @@ data: ${snap}
       },
       invalidate() {
         token = null;
+        keep(null);
       },
       async revoke() {
         gen += 1;
         const t = valid() ? token.value : null;
         token = null;
+        keep(null);
         st = { linked: false, email: null };
         await save();
         if (!t || !await revokeAt(t)) throw new Error("\uAD6C\uAE00 \uCABD \uCDE8\uC18C \uBABB \uD568");
@@ -4758,6 +4780,7 @@ data: ${snap}
                 return finish(reject, new UserError("\uADF8 \uC0AC\uC774 \uC5F0\uACB0\uC744 \uB04A\uC5C8\uC5B4\uC694. \uB2E4\uC2DC \uC5F0\uACB0\uD558\uB824\uBA74 \uB2E4\uC2DC \uB20C\uB7EC \uC8FC\uC138\uC694."));
               }
               token = { value: r.access_token, exp: Date.now() + (Number(r.expires_in) || 3600) * 1e3 };
+              keep({ ...token, email });
               st = { linked: true, email };
               told = false;
               await save();

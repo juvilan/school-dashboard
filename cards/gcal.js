@@ -220,16 +220,33 @@
     return b;
   }
 
-  // 할 일 한 줄: ☐ 누르면 완료, × 두 번 누르면 지움
+  // 할 일 한 줄: ☐ 누르면 완료, 제목을 누르면 고치기(제목·마감일), × 두 번 누르면 지움
+  // 고치는 중에 다른 곳의 변경으로 목록이 다시 그려져도 적던 내용이 남도록 editing 에 둔다
+  let editing = null; // { id, rev, title, due, saving }
   function todoRow(it, date) {
-    const row = el('div', 'd-item chip todo d-todo-row');
-    const done = el('button', 'd-todo-done', '☐');
+    if (editing && editing.id === it.todoId) return todoEditRow(it, date);
+    const row = el('div', `d-item chip todo d-todo-row${it.done ? ' done' : ''}`);
+    // ☐ 누르면 끝냄(취소선으로 남음), ☑ 누르면 다시 안 끝낸 일로
+    const done = el('button', 'd-todo-done', it.done ? '☑' : '☐');
     done.type = 'button';
-    done.title = '끝냄';
-    done.setAttribute('aria-label', `${it.title} 끝냄`);
+    done.title = it.done ? '안 끝낸 일로 되돌리기' : '끝냄';
+    done.setAttribute('aria-label', `${it.title} ${it.done ? '되돌리기' : '끝냄'}`);
+    done.setAttribute('aria-pressed', String(Boolean(it.done)));
     done.addEventListener('click', async () => {
       done.disabled = true;
-      try { await api('PATCH', `/api/todos/${it.todoId}`, { done: true }); } catch (err) { $('d-msg').textContent = err.message; done.disabled = false; }
+      try {
+        const r = await api('PATCH', `/api/todos/${it.todoId}`, { done: !it.done });
+        // 다른 기기가 먼저 같은 상태로 바꿔 둔 경우: 바뀐 알림이 오지 않으니 직접 다시 그림
+        if (r?.unchanged) { done.disabled = false; if ($('day-dialog').open && cur?.date) renderDayList(cur.date); }
+      } catch (err) { $('d-msg').textContent = err.message; done.disabled = false; }
+    });
+    const title = el('button', 'd-todo-title', it.title);
+    title.type = 'button';
+    title.title = '눌러서 고치기';
+    title.addEventListener('click', () => {
+      editing = { id: it.todoId, rev: it.rev, title: it.title, due: date };
+      renderDayList(date);
+      document.querySelector('.d-todo-edit input')?.focus();
     });
     const del = el('button', 'd-todo-del', '×');
     del.type = 'button';
@@ -238,7 +255,57 @@
       if (del.dataset.armed !== '1') { del.dataset.armed = '1'; del.textContent = '지우기?'; setTimeout(() => { del.dataset.armed = ''; del.textContent = '×'; }, 3000); return; }
       try { await api('DELETE', `/api/todos/${it.todoId}?rev=${encodeURIComponent(it.rev)}`); } catch (err) { $('d-msg').textContent = err.message; }
     });
-    row.append(done, el('span', 'd-todo-title', it.title), ...(TEACHER ? [ddayBtn(`todo:${it.todoId}`, it.title, date)] : []), del);
+    row.append(done, title, ...(TEACHER && !it.done ? [ddayBtn(`todo:${it.todoId}`, it.title, date)] : []), del);
+    return row;
+  }
+  function todoEditRow(it, date) {
+    const ed = editing;
+    const row = el('div', 'd-item chip todo d-todo-edit');
+    const t = el('input');
+    t.value = ed.title;
+    t.maxLength = 200;
+    t.setAttribute('aria-label', '할 일');
+    t.addEventListener('input', () => { ed.title = t.value; });
+    const d = el('input');
+    d.type = 'date';
+    d.value = ed.due;
+    d.setAttribute('aria-label', '마감일');
+    d.addEventListener('input', () => { ed.due = d.value; });
+    const save = el('button', 'small-btn', '저장');
+    save.type = 'button';
+    const cancel = el('button', 'ghost small-btn', '취소');
+    cancel.type = 'button';
+    const stop = () => { if (editing === ed) editing = null; renderDayList(cur?.date || date); };
+    cancel.addEventListener('click', stop);
+    save.addEventListener('click', async () => {
+      if (ed.saving) return;
+      const title = ed.title.trim();
+      if (!title) { $('d-msg').textContent = '할 일을 적어 주세요.'; return; }
+      if (!ed.due) { $('d-msg').textContent = '마감일을 골라 주세요.'; return; }
+      ed.saving = true;
+      save.disabled = true;
+      $('d-msg').textContent = '';
+      try {
+        await api('PATCH', `/api/todos/${ed.id}`, { rev: ed.rev, title, due: ed.due });
+        stop();
+      } catch (err) {
+        // 409: 다른 기기에서 먼저 고침 → 그쪽 내용을 알려 주고, 적던 글은 남겨 둔다 (다시 저장하면 내 것으로)
+        if (editing !== ed) return;
+        if (err.status === 409 && err.current) {
+          ed.rev = err.current.rev;
+          $('d-msg').textContent = `다른 기기에서 먼저 "${err.current.title}"(${err.current.due || '마감일 없음'})로 고쳤어요. 내 것으로 바꾸려면 다시 저장을 눌러 주세요.`;
+        } else $('d-msg').textContent = err.message;
+      } finally {
+        ed.saving = false;
+        save.disabled = false;
+      }
+    });
+    // 날짜 창 전체가 form 이라 Enter·Escape 를 여기서 잡는다 (안 그러면 창이 제출되거나 닫힘)
+    row.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); if (e.target !== cancel) save.click(); else stop(); }
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); stop(); }
+    });
+    row.append(t, d, save, cancel);
     return row;
   }
 
@@ -246,6 +313,7 @@
     if (!gstatus) await loadStatus();
     // newId: 새 일정의 id. 응답을 못 받고 다시 눌러도 같은 id라 두 번 생기지 않는다
     const newId = Array.from(crypto.getRandomValues(new Uint8Array(26)), (b) => '0123456789abcdefghijklmnopqrstuv'[b % 32]).join('');
+    editing = null;
     cur = { date, item, newId, mode: mode || (item ? 'event' : gstatus?.linked ? 'event' : 'todo') };
     $('d-head').textContent = item ? '일정 고치기' : date ? fmtDate(date) : '할 일 추가';
     $('d-list-wrap').hidden = !date || Boolean(item);
