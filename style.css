@@ -396,6 +396,12 @@ button.icon { padding: 2px 12px; font-size: 18px; line-height: 1.4; }
 .clip-form textarea { width: 100%; resize: vertical; min-height: 44px; box-sizing: border-box; font: inherit; font-size: 13px; line-height: 1.4; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); }
 .clip-form .row { flex-direction: column; flex-wrap: nowrap; gap: 4px; margin: 0; }
 .clip-form .row button { padding: 4px 12px; font-size: 13px; }
+.clip-filters { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
+.clip-filters button { padding: 3px 9px; font-size: 12px; border: 1px solid var(--line); background: transparent; color: var(--muted); }
+.clip-filters button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: #fff; }
+.clip-terminal-pending:not([hidden]) { display: flex; gap: 6px; align-items: center; margin: 6px 0; padding: 6px; border: 1px solid var(--accent); border-radius: 8px; }
+#clip-terminal-preview { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#clip-terminal-save { flex-shrink: 0; margin: 0; padding: 3px 7px; font-size: 12px; }
 #card-clip .msg { min-height: 0; margin-top: 4px; }
 #card-clip .msg:empty { display: none; }
 .clip-list { list-style: none; margin: 6px 0 0; padding: 0; max-height: 300px; overflow-y: auto; overscroll-behavior: contain; }
@@ -598,13 +604,15 @@ button.d-item { font: inherit; color: inherit; }
 /* 터미널 칸 */
 .term-card { padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
 .term-card .card-head h2 { margin: 0; }
-.term-acts { display: flex; align-items: center; gap: 6px; }
+.term-acts { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
 .term-box { height: 340px; min-width: 0; background: #0d1117; border-radius: 8px; padding: 4px; overflow: hidden; contain: size; }
 @media (max-width: 620px) { .term-box { height: 300px; } }
 .term-page { margin: 0; height: 100vh; display: flex; flex-direction: column; background: #0d1117; }
 .term-bar { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--line); }
 .term-bar #term-connect { margin-left: auto; }
 .term-page .term-box { flex: 1; height: auto; border-radius: 0; }
+.term-copy-dialog { width: min(900px, calc(100% - 32px)); }
+.term-copy-text { display: block; width: 100%; height: min(55vh, 480px); margin-bottom: 12px; padding: 10px; resize: vertical; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); font: 13px/1.5 "Cascadia Mono", Menlo, Consolas, monospace; user-select: text; }
 
 /* ---- 넓은 화면: 머리줄·오늘 띠를 한 줄 높이로 ---- */
 @media (min-width: 1000px) {

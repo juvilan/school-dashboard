@@ -4490,7 +4490,9 @@ data: ${snap}
     };
     return {
       get: (k) => run("readonly", (s) => s.get(k)),
-      set: (k, v) => run("readwrite", (s) => s.put(v, k))
+      set: (k, v) => run("readwrite", (s) => s.put(v, k)),
+      del: (k) => run("readwrite", (s) => s.delete(k)),
+      keys: () => run("readonly", (s) => s.getAllKeys())
     };
   })();
   function createGoogleWeb(clientId, onExpired) {
@@ -4723,6 +4725,8 @@ data: ${snap}
     }
     if (bytes === void 0) persist().catch(() => {
     });
+    engine.hub.register("clip", clipState, "read");
+    clipStore.queue = loadClip().then(() => engine.hub.live("clip", clipState()));
     navigator.storage?.persist?.().catch(() => {
     });
     return engine;
@@ -4731,6 +4735,143 @@ data: ${snap}
     if (/다른 창|읽기 실패|열기 실패/.test(String(err?.message))) return;
     stopScreen(`\uC2DC\uC791\uD558\uC9C0 \uBABB\uD588\uC5B4\uC694: ${err?.message || err}. \uD06C\uB86C\uC774\uB098 \uC5E3\uC9C0 \uCD5C\uC2E0 \uD310\uC5D0\uC11C \uC5F4\uC5B4 \uC8FC\uC138\uC694.`);
   });
+  var CLIP = { maxFile: 50 * 1024 * 1024, maxTotal: 500 * 1024 * 1024, maxItems: 300, maxText: 256 * 1024, preview: 600 };
+  var IMAGE_TYPES = /* @__PURE__ */ new Set(["image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp"]);
+  var clipStore = {
+    items: [],
+    // 새것이 앞. { id, kind:'text'|'file', name, type, size, image, createdAt, preview, truncated, url }
+    body: /* @__PURE__ */ new Map(),
+    // id → 글(string) 또는 Blob
+    error: null,
+    queue: null
+    // 처음 읽기가 끝나야 바꾸기를 시작한다 (아래 ready 에서 채움)
+  };
+  var clipState = () => ({ linked: true, error: clipStore.error, items: clipStore.items, maxFileBytes: CLIP.maxFile });
+  var clipMeta = () => clipStore.items.map(({ url, ...m }) => m);
+  async function loadClip() {
+    try {
+      const index = await kv.get("clip-index") || [];
+      const bodies = await Promise.all(index.map((m) => kv.get(`clip:${m.id}`)));
+      const keep = [];
+      index.forEach((m, i) => {
+        const b = bodies[i];
+        if (b === void 0) return;
+        clipStore.body.set(m.id, b);
+        keep.push(m.kind === "file" ? { ...m, url: URL.createObjectURL(b) } : m);
+      });
+      clipStore.items = keep;
+    } catch (err) {
+      clipStore.error = `\uD074\uB9BD\uBCF4\uB4DC\uB97C \uC77D\uC9C0 \uBABB\uD588\uC5B4\uC694: ${err?.message || err}`;
+      return;
+    }
+    try {
+      const ids = new Set(clipStore.items.map((m) => m.id));
+      for (const k of await kv.keys()) {
+        if (typeof k === "string" && k.startsWith("clip:") && !ids.has(k.slice(5))) await kv.del(k).catch(() => {
+        });
+      }
+    } catch {
+    }
+  }
+  function clipChange(fn) {
+    const run = clipStore.queue.then(async () => {
+      if (clipStore.error) throw new UserError("\uD074\uB9BD\uBCF4\uB4DC\uB97C \uC77D\uC9C0 \uBABB\uD574\uC11C \uC9C0\uAE08\uC740 \uBC14\uAFC0 \uC218 \uC5C6\uC5B4\uC694. \uCC3D\uC744 \uB2E4\uC2DC \uC5F4\uC5B4 \uC8FC\uC138\uC694.");
+      return fn();
+    });
+    clipStore.queue = run.catch(() => {
+    });
+    return run.finally(() => engine?.hub.live("clip", clipState()));
+  }
+  async function clipAdd(entries) {
+    const total = clipStore.items.reduce((n, m) => n + m.size, 0) + entries.reduce((n, e) => n + e.meta.size, 0);
+    if (total > CLIP.maxTotal) throw new UserError(`\uD074\uB9BD\uBCF4\uB4DC\uAC00 \uAC00\uB4DD \uCC3C\uC5B4\uC694 (\uCD5C\uB300 ${CLIP.maxTotal / 1024 / 1024}MB). \uC548 \uC4F0\uB294 \uAC83\uC744 \uC9C0\uC6CC \uC8FC\uC138\uC694.`);
+    if (clipStore.items.length + entries.length > CLIP.maxItems) throw new UserError(`\uD074\uB9BD\uBCF4\uB4DC\uB294 ${CLIP.maxItems}\uAC1C\uAE4C\uC9C0 \uB2F4\uC744 \uC218 \uC788\uC5B4\uC694. \uC548 \uC4F0\uB294 \uAC83\uC744 \uC9C0\uC6CC \uC8FC\uC138\uC694.`);
+    for (const e of entries) {
+      if (e.body instanceof Blob) e.body = new Blob([await e.body.arrayBuffer()], { type: e.meta.type });
+    }
+    try {
+      for (const e of entries) await kv.set(`clip:${e.meta.id}`, e.body);
+      await kv.set("clip-index", [...entries.map((e) => e.meta), ...clipMeta()]);
+    } catch {
+      for (const e of entries) await kv.del(`clip:${e.meta.id}`).catch(() => {
+      });
+      throw new UserError("\uC774 PC\uC5D0 \uC800\uC7A5\uD558\uC9C0 \uBABB\uD588\uC5B4\uC694. \uBE0C\uB77C\uC6B0\uC800 \uC800\uC7A5 \uACF5\uAC04\uC744 \uD655\uC778\uD574 \uC8FC\uC138\uC694.");
+    }
+    for (const e of entries.slice().reverse()) {
+      clipStore.body.set(e.meta.id, e.body);
+      clipStore.items.unshift(e.meta.kind === "file" ? { ...e.meta, url: URL.createObjectURL(e.body) } : e.meta);
+    }
+    return entries.map((e) => e.meta);
+  }
+  async function clipRemove(ids) {
+    const drop = new Set(ids.filter((id) => clipStore.body.has(id)));
+    if (!drop.size) return 0;
+    await kv.set("clip-index", clipMeta().filter((m) => !drop.has(m.id)));
+    for (const m of clipStore.items) if (drop.has(m.id) && m.url) URL.revokeObjectURL(m.url);
+    clipStore.items = clipStore.items.filter((m) => !drop.has(m.id));
+    for (const id of drop) {
+      clipStore.body.delete(id);
+      await kv.del(`clip:${id}`).catch(() => {
+      });
+    }
+    return drop.size;
+  }
+  var jsonRes = (status, data) => status === 204 ? new Response(null, { status }) : new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
+  async function clipFetch(method, path, init) {
+    try {
+      if (method === "GET" && path === "/api/clip") {
+        await clipStore.queue;
+        return jsonRes(200, clipState());
+      }
+      if (method === "POST" && path === "/api/clip/text") {
+        const text = typeof init.body === "string" ? init.body : "";
+        if (!text.trim()) throw new UserError("\uBCF4\uB0BC \uB0B4\uC6A9\uC774 \uC5C6\uC5B4\uC694.");
+        const bytes = new TextEncoder().encode(text).length;
+        if (bytes > CLIP.maxText) throw new UserError("\uAE00\uC774 \uB108\uBB34 \uAE38\uC5B4\uC694 (256KB\uAE4C\uC9C0).");
+        const meta = { id: crypto.randomUUID(), kind: "text", size: bytes, createdAt: Date.now(), preview: text.slice(0, CLIP.preview), truncated: text.length > CLIP.preview };
+        return jsonRes(201, (await clipChange(() => clipAdd([{ meta, body: text }])))[0]);
+      }
+      if (method === "POST" && path === "/api/clip/upload") {
+        const files = init.body instanceof FormData ? init.body.getAll("files").filter((f) => f instanceof Blob) : [];
+        if (!files.length) throw new UserError("\uC62C\uB9B4 \uD30C\uC77C\uC774 \uC5C6\uC5B4\uC694.");
+        const big = files.find((f) => f.size > CLIP.maxFile);
+        if (big) throw new UserError(`${big.name}: \uD30C\uC77C\uC740 \uCD5C\uB300 ${CLIP.maxFile / 1024 / 1024}MB\uAE4C\uC9C0 \uB2F4\uC744 \uC218 \uC788\uC5B4\uC694.`);
+        const now = Date.now();
+        const entries = files.map((f, i) => ({
+          meta: { id: crypto.randomUUID(), kind: "file", name: String(f.name || "clipboard.png").slice(0, 200), type: f.type || "application/octet-stream", size: f.size, image: IMAGE_TYPES.has(f.type), createdAt: now - i },
+          body: f
+          // 한도를 본 뒤 clipAdd 에서 복사본으로 바꾼다
+        }));
+        return jsonRes(201, { items: await clipChange(() => clipAdd(entries)) });
+      }
+      if (method === "POST" && path === "/api/clip/clear") {
+        let ids = [];
+        try {
+          ids = JSON.parse(init.body).ids;
+        } catch {
+        }
+        if (!Array.isArray(ids)) throw new UserError("\uC9C0\uC6B8 \uD56D\uBAA9\uC744 \uC54C \uC218 \uC5C6\uC5B4\uC694.");
+        const removed = await clipChange(() => clipRemove(ids.map(String)));
+        return jsonRes(200, { removed, failed: 0 });
+      }
+      const m = path.match(/^\/api\/clip\/([0-9a-f-]{36})(?:\/(raw|download))?$/);
+      if (m && method === "DELETE" && !m[2]) {
+        const n = await clipChange(() => clipRemove([m[1]]));
+        return n ? jsonRes(204) : jsonRes(404, { error: "\uC774\uBBF8 \uC9C0\uC6CC\uC84C\uC5B4\uC694." });
+      }
+      if (m && method === "GET" && m[2]) {
+        await clipStore.queue;
+        const b = clipStore.body.get(m[1]);
+        if (b === void 0) return jsonRes(404, { error: "\uC774\uBBF8 \uC9C0\uC6CC\uC84C\uC5B4\uC694." });
+        const meta = clipStore.items.find((x) => x.id === m[1]);
+        return new Response(b, { status: 200, headers: { "Content-Type": typeof b === "string" ? "text/plain; charset=utf-8" : meta?.type || "application/octet-stream" } });
+      }
+      return jsonRes(404, { error: "\uC5C6\uB294 \uC8FC\uC18C\uC608\uC694." });
+    } catch (err) {
+      if (err instanceof UserError) return jsonRes(err.status || 400, { error: err.message });
+      return jsonRes(500, { error: `\uD074\uB9BD\uBCF4\uB4DC \uC624\uB958: ${err?.message || err}` });
+    }
+  }
   window.fetch = async function localFetch(input, init = {}) {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     let u;
@@ -4742,6 +4883,7 @@ data: ${snap}
     if (u.origin !== location.origin || !u.pathname.startsWith("/api/")) return nativeFetch(input, init);
     const eng = await ready;
     const method = String(init.method || "GET").toUpperCase();
+    if (u.pathname === "/api/clip" || u.pathname.startsWith("/api/clip/")) return clipFetch(method, u.pathname, init);
     let body;
     if (typeof init.body === "string" && init.body) {
       try {

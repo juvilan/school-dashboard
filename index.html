@@ -6,11 +6,11 @@
   <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>학교 대시보드</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=0.1.0-4a15d556c8">
-  <link rel="icon" href="./icon.svg?v=0.1.0-4a15d556c8" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest?v=0.1.0-28e8f6d9dc">
+  <link rel="icon" href="./icon.svg?v=0.1.0-28e8f6d9dc" type="image/svg+xml">
   <meta name="theme-color" content="#1f6feb">
   
-  <link rel="stylesheet" href="./style.css?v=0.1.0-4a15d556c8">
+  <link rel="stylesheet" href="./style.css?v=0.1.0-28e8f6d9dc">
 </head>
 <body data-edition="teacher" data-host="web">
   <header class="top">
@@ -105,7 +105,30 @@
       
     </div>
     <div class="col col-right">
-      
+      <section class="card" id="card-clip">
+        <div class="card-head"><h2>클립보드</h2><div class="clip-head-acts"><span id="clip-status" class="muted small"></span><button id="clip-clear" class="ghost small-btn" type="button" hidden>모두 지우기</button></div></div>
+        <div id="clip-filters" class="clip-filters" role="group" aria-label="클립보드 종류">
+          <button type="button" data-kind="all" aria-pressed="true">전체</button>
+          <button type="button" data-kind="text" aria-pressed="false">텍스트</button>
+          <button type="button" data-kind="image" aria-pressed="false">이미지</button>
+          <button type="button" data-kind="file" aria-pressed="false">파일</button>
+        </div>
+        <div id="clip-terminal-pending" class="clip-terminal-pending" hidden>
+          <span id="clip-terminal-preview" class="small"></span>
+          <button id="clip-terminal-save" class="small-btn" type="button">텍스트에 저장</button>
+        </div>
+        <form id="clip-form" class="clip-form">
+          <textarea id="clip-input" rows="2" placeholder="적거나 붙여넣기 (Ctrl+Enter 보내기 · 캡처 이미지는 붙여넣으면 바로 올라가요)" aria-label="보낼 내용"></textarea>
+          <div class="row">
+            <button id="clip-send" type="submit">보내기</button>
+            <button id="clip-file-btn" class="ghost" type="button">파일</button>
+            <input id="clip-file" type="file" multiple hidden>
+          </div>
+        </form>
+        <p id="clip-msg" class="msg" role="alert"></p>
+        <ul id="clip-list" class="clip-list"></ul>
+        <button id="clip-more" class="ghost small-btn" type="button" hidden></button>
+      </section>
       <section class="card" id="card-sticky">
         <div class="card-head"><h2>포스트잇</h2><button id="sticky-add" class="ghost small-btn" type="button">+ 새 메모</button></div>
         <div id="sticky-list" class="sticky-list"></div>
@@ -297,7 +320,7 @@
       
       <section>
         <h3>자료 보관</h3>
-        <p class="small muted">자료(시간표·수업 메모·할 일·포스트잇)는 <strong>이 PC의 이 브라우저 안에만</strong> 저장돼요. 어디로도 보내지 않아요. 브라우저의 "인터넷 사용 기록 삭제"에서 쿠키·사이트 데이터를 지우면 함께 지워지니, 가끔 백업 파일을 받아 두세요. 다른 PC로 옮길 때도 이 파일을 불러오면 돼요.</p>
+        <p class="small muted">자료(시간표·수업 메모·할 일·포스트잇)는 <strong>이 PC의 이 브라우저 안에만</strong> 저장돼요. 어디로도 보내지 않아요. 브라우저의 "인터넷 사용 기록 삭제"에서 쿠키·사이트 데이터를 지우면 함께 지워지니, 가끔 백업 파일을 받아 두세요. 다른 PC로 옮길 때도 이 파일을 불러오면 돼요. (클립보드에 담은 글·캡처·파일은 백업 파일에 들어가지 않아요.)</p>
         <div class="row"><button id="w-backup" type="button">백업 파일 받기</button><button id="w-restore" class="ghost" type="button">백업 파일 불러오기</button></div>
         <input id="w-restore-file" type="file" accept=".db" hidden>
         <p id="w-backup-msg" class="small muted"></p>
@@ -321,19 +344,19 @@
   
 
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script src="./local.js?v=0.1.0-4a15d556c8"></script>
-  <script src="./cards/calendar-logic.js?v=0.1.0-4a15d556c8"></script>
-  <script src="./app.js?v=0.1.0-4a15d556c8"></script>
+  <script src="./local.js?v=0.1.0-28e8f6d9dc"></script>
+  <script src="./cards/calendar-logic.js?v=0.1.0-28e8f6d9dc"></script>
+  <script src="./app.js?v=0.1.0-28e8f6d9dc"></script>
   
-  <script src="./cards/today.js?v=0.1.0-4a15d556c8"></script>
-  <script src="./cards/calendar.js?v=0.1.0-4a15d556c8"></script>
-  <script src="./cards/timetable-logic.js?v=0.1.0-4a15d556c8"></script>
-  <script src="./cards/timetable.js?v=0.1.0-4a15d556c8"></script>
-  <script src="./cards/ttnote.js?v=0.1.0-4a15d556c8"></script>
-  <script src="./cards/gcal.js?v=0.1.0-4a15d556c8"></script>
+  <script src="./cards/today.js?v=0.1.0-28e8f6d9dc"></script>
+  <script src="./cards/calendar.js?v=0.1.0-28e8f6d9dc"></script>
+  <script src="./cards/timetable-logic.js?v=0.1.0-28e8f6d9dc"></script>
+  <script src="./cards/timetable.js?v=0.1.0-28e8f6d9dc"></script>
+  <script src="./cards/ttnote.js?v=0.1.0-28e8f6d9dc"></script>
+  <script src="./cards/gcal.js?v=0.1.0-28e8f6d9dc"></script>
+  <script src="./cards/clip.js?v=0.1.0-28e8f6d9dc"></script>
+  <script src="./cards/sticky.js?v=0.1.0-28e8f6d9dc"></script>
   
-  <script src="./cards/sticky.js?v=0.1.0-4a15d556c8"></script>
-  
-  <script src="./cards/teacher.js?v=0.1.0-4a15d556c8"></script>
+  <script src="./cards/teacher.js?v=0.1.0-28e8f6d9dc"></script>
 </body>
 </html>
