@@ -598,13 +598,15 @@ button.d-item { font: inherit; color: inherit; }
 /* 터미널 칸 */
 .term-card { padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
 .term-card .card-head h2 { margin: 0; }
-.term-acts { display: flex; align-items: center; gap: 6px; }
+.term-acts { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
 .term-box { height: 340px; min-width: 0; background: #0d1117; border-radius: 8px; padding: 4px; overflow: hidden; contain: size; }
 @media (max-width: 620px) { .term-box { height: 300px; } }
 .term-page { margin: 0; height: 100vh; display: flex; flex-direction: column; background: #0d1117; }
 .term-bar { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--line); }
 .term-bar #term-connect { margin-left: auto; }
 .term-page .term-box { flex: 1; height: auto; border-radius: 0; }
+.term-copy-dialog { width: min(900px, calc(100% - 32px)); }
+.term-copy-text { display: block; width: 100%; height: min(55vh, 480px); margin-bottom: 12px; padding: 10px; resize: vertical; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); font: 13px/1.5 "Cascadia Mono", Menlo, Consolas, monospace; user-select: text; }
 
 /* ---- 넓은 화면: 머리줄·오늘 띠를 한 줄 높이로 ---- */
 @media (min-width: 1000px) {

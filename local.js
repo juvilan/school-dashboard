@@ -4468,7 +4468,7 @@ data: ${snap}
   var { UserError } = require_errors();
   var { localDate } = require_today();
   var SQLJS_VERSION = require_package().version;
-  var GOOGLE_CLIENT_ID = true ? "" : "";
+  var GOOGLE_CLIENT_ID = true ? "768383967666-motbdbd8334fvj06pe02cjn79aqjm4an.apps.googleusercontent.com" : "";
   var nativeFetch = window.fetch.bind(window);
   var kv = /* @__PURE__ */ (() => {
     let dbp = null;
