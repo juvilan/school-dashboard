@@ -22,16 +22,20 @@
     return s;
   }
 
-  // 배포판 D-day: 달력에서 ☆ 로 고른 일정·할 일 (가까운 것부터 2개)
+  // 배포판 D-day: 학사일정의 다음 시험(나이스) + 달력에서 ☆ 로 고른 일정·할 일 (가까운 것부터 2개)
   const TEACHER = window.Dash.edition === 'teacher';
+  let autoExam = null; // { title, start, end }
   function renderDdays() {
     const now = localDate();
-    const list = (window.Dash.state.data.settings?.ddays || []).filter((d) => d.date >= now).sort((a, b) => a.date.localeCompare(b.date));
+    const starred = (window.Dash.state.data.settings?.ddays || []).filter((d) => d.date >= now);
+    const exam = autoExam && autoExam.end >= now && !starred.some((d) => d.title === autoExam.title)
+      ? [{ title: autoExam.title, date: autoExam.start > now ? autoExam.start : now, during: autoExam.start <= now }] : [];
+    const list = [...exam, ...starred].sort((a, b) => a.date.localeCompare(b.date));
     const parts = [];
     for (const d of list.slice(0, 2)) {
       const n = daysBetween(now, d.date);
       if (parts.length) parts.push(span(' · ', 'muted'));
-      parts.push(span(d.title, 'muted'), span(` ${n === 0 ? 'D-day' : `D-${n}`}`, n <= 7 ? 'dday soon' : 'dday'));
+      parts.push(span(d.title, 'muted'), span(` ${d.during ? '시험 기간' : n === 0 ? 'D-day' : `D-${n}`}`, n <= 7 ? 'dday soon' : 'dday'));
     }
     if (list.length > 2) parts.push(span(` +${list.length - 2}`, 'muted'));
     text($('strip-exam'), parts);
@@ -100,6 +104,7 @@
     $('strip-daytype').classList.toggle('off', Boolean(day && day.type !== '수업일'));
 
     if (TEACHER) {
+      autoExam = sc.nextExam || null;
       renderDdays();
     } else if (sc.nextExam) {
       const d = daysBetween(data.date, sc.nextExam.start);

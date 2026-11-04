@@ -2704,6 +2704,7 @@ data: ${snap}
           return res.json();
         });
         const cache = /* @__PURE__ */ new Map();
+        const keyOf = (y) => `${deps.cacheKey ? deps.cacheKey() : ""}:${y}`;
         const inflight = /* @__PURE__ */ new Map();
         let holidayNames = {};
         let holidayMtime = null;
@@ -2722,25 +2723,26 @@ data: ${snap}
         }
         async function year(y) {
           holidays();
-          const c = cache.get(y);
+          const k = keyOf(y);
+          const c = cache.get(k);
           if (c && Date.now() - c.at < cfg.plannerCacheSeconds * 1e3) return c;
-          if (!inflight.has(y)) {
-            inflight.set(y, (async () => {
+          if (!inflight.has(k)) {
+            inflight.set(k, (async () => {
               try {
                 const state = await fetchState(y);
                 const entry = { at: Date.now(), data: state ? normalize(state, holidays()) : { days: {}, events: [] }, error: null };
-                cache.set(y, entry);
+                cache.set(k, entry);
                 return entry;
               } catch (err) {
                 const entry = { at: Date.now() - (cfg.plannerCacheSeconds - 30) * 1e3, data: c?.data || { days: {}, events: [] }, error: err.message };
-                cache.set(y, entry);
+                cache.set(k, entry);
                 return entry;
               } finally {
-                inflight.delete(y);
+                inflight.delete(k);
               }
             })());
           }
-          return inflight.get(y);
+          return inflight.get(k);
         }
         async function range(from, to) {
           if (!validDate(from) || !validDate(to) || to < from) throw new UserError2("\uB0A0\uC9DC \uBC94\uC704\uAC00 \uB9DE\uC9C0 \uC54A\uC544\uC694.");
@@ -2768,6 +2770,142 @@ data: ${snap}
         return { range, today };
       }
       module.exports = { createSchool, normalize, parseHolidayTable, schoolYearOf, addDays, validDate };
+    }
+  });
+
+  // ../lib/neis-schedule.js
+  var require_neis_schedule = __commonJS({
+    "../lib/neis-schedule.js"(exports, module) {
+      var URL_BASE = "https://open.neis.go.kr/hub/SchoolSchedule";
+      var EXAM_RE = /고사|시험|학력평가|모의평가/;
+      var NOT_EXAM_RE = /교원|수행|감독|연수|협의|평가회|채점|원서|접수|휴업/;
+      var isExam = (name) => EXAM_RE.test(name) && !NOT_EXAM_RE.test(name);
+      var DAY_RANK = { \uACF5\uD734\uC77C: 3, \uC7AC\uB7C9\uD734\uC5C5\uC77C: 2, \uBC29\uD559: 1 };
+      var GRADES = [["ONE_GRADE_EVENT_YN", 1], ["TW_GRADE_EVENT_YN", 2], ["THREE_GRADE_EVENT_YN", 3], ["FR_GRADE_EVENT_YN", 4], ["FIV_GRADE_EVENT_YN", 5], ["SIX_GRADE_EVENT_YN", 6]];
+      var ymd = (s) => /^\d{8}$/.test(String(s)) ? `${String(s).slice(0, 4)}-${String(s).slice(4, 6)}-${String(s).slice(6, 8)}` : null;
+      var dayDiff = (a, b) => Math.round((/* @__PURE__ */ new Date(`${b}T00:00:00Z`) - /* @__PURE__ */ new Date(`${a}T00:00:00Z`)) / 864e5);
+      function gradeNote(r) {
+        const on = GRADES.filter(([k]) => r[k] === "Y").map(([, g]) => g);
+        const top = GRADES.slice(3).some(([k]) => r[k] === "Y") ? 6 : 3;
+        if (!on.length || on.length >= top) return "";
+        return `${on.join("\xB7")}\uD559\uB144`;
+      }
+      function fewGradesOk(r) {
+        const on = GRADES.filter(([k]) => r[k] === "Y").length;
+        const top = GRADES.slice(3).some(([k]) => r[k] === "Y") ? 6 : 3;
+        return !on || on * 2 > top;
+      }
+      function toState(rows) {
+        const dayMap = /* @__PURE__ */ new Map();
+        const eventMap = /* @__PURE__ */ new Map();
+        const examDays = [];
+        const seenExam = /* @__PURE__ */ new Set();
+        const addEvent = (date, name, r) => {
+          const k = `${date}:${name}`;
+          const e = eventMap.get(k) || { date, name, flags: {} };
+          for (const [g] of GRADES) if (r[g] === "Y") e.flags[g] = "Y";
+          eventMap.set(k, e);
+        };
+        const list = Array.isArray(rows) ? rows : [];
+        const offFlags = /* @__PURE__ */ new Map();
+        for (const r of list) {
+          if (r?.SBTR_DD_SC_NM !== "\uD734\uC5C5\uC77C") continue;
+          const k = `${r.AA_YMD}:${String(r.EVENT_NM || "").trim()}`;
+          const f = offFlags.get(k) || {};
+          for (const [g] of GRADES) if (r[g] === "Y") f[g] = "Y";
+          offFlags.set(k, f);
+        }
+        for (const r of list) {
+          const date = ymd(r?.AA_YMD);
+          const name = String(r?.EVENT_NM || "").trim().slice(0, 100);
+          if (!date || !name || name === "\uD1A0\uC694\uD734\uC5C5\uC77C") continue;
+          const kind = String(r.SBTR_DD_SC_NM || "");
+          const weekend = [0, 6].includes((/* @__PURE__ */ new Date(`${date}T00:00:00Z`)).getUTCDay());
+          if (isExam(name)) {
+            if (!seenExam.has(`${date}:${name}`)) {
+              seenExam.add(`${date}:${name}`);
+              examDays.push({ date, name });
+            }
+          }
+          if (kind === "\uD734\uC5C5\uC77C" && weekend && !/방학/.test(name)) {
+            if (!isExam(name)) addEvent(date, name, r);
+            continue;
+          }
+          if (kind === "\uD734\uC5C5\uC77C" && !fewGradesOk(offFlags.get(`${r.AA_YMD}:${String(r.EVENT_NM || "").trim()}`) || r)) {
+            if (!isExam(name)) addEvent(date, name, r);
+            continue;
+          }
+          if (kind === "\uACF5\uD734\uC77C" || kind === "\uD734\uC5C5\uC77C") {
+            const type = kind === "\uACF5\uD734\uC77C" ? "\uACF5\uD734\uC77C" : /방학/.test(name) ? "\uBC29\uD559" : "\uC7AC\uB7C9\uD734\uC5C5\uC77C";
+            const old = dayMap.get(date);
+            if (!old || DAY_RANK[type] > DAY_RANK[old.type]) dayMap.set(date, { type, name });
+            continue;
+          }
+          if (!isExam(name)) addEvent(date, name, r);
+        }
+        const days = [];
+        const customHolidays = [];
+        for (const [date, d] of [...dayMap].sort((x, y) => x[0].localeCompare(y[0]))) {
+          days.push({ date, type: d.type });
+          if (d.type !== "\uBC29\uD559") customHolidays.push({ date, name: d.name });
+        }
+        const events = [...eventMap.values()].map((e) => {
+          const note = gradeNote(e.flags);
+          return { eventId: `neis:${e.date}:${e.name}`, date: e.date, title: e.name, appliesTo: note ? note.replace("\uD559\uB144", "") : "\uC804\uCCB4" };
+        });
+        examDays.sort((a, b) => a.name.localeCompare(b.name) || a.date.localeCompare(b.date));
+        const exams = [];
+        for (const d of examDays) {
+          const last = exams.at(-1);
+          if (last && last.name === d.name && dayDiff(last.end, d.date) <= 4) last.end = d.date;
+          else exams.push({ id: `neis:${d.name}:${d.date}`, name: d.name, start: d.date, end: d.date });
+        }
+        exams.sort((a, b) => a.start.localeCompare(b.start));
+        return { days, customHolidays, events, exams };
+      }
+      function neisSchedule({ key, getSchool, getJson }) {
+        return {
+          cacheKey: () => {
+            const s = getSchool();
+            return s ? `${s.office}:${s.code}` : "none";
+          },
+          async fetchState(year) {
+            const s = getSchool();
+            if (!s || !s.office || !s.code) return null;
+            const febEnd = new Date(Date.UTC(year + 1, 2, 0)).getUTCDate();
+            const u = new URL(URL_BASE);
+            u.search = new URLSearchParams({
+              Type: "json",
+              pIndex: "1",
+              pSize: "1000",
+              ...key ? { KEY: key } : {},
+              ATPT_OFCDC_SC_CODE: s.office,
+              SD_SCHUL_CODE: s.code,
+              AA_FROM_YMD: `${year}0301`,
+              AA_TO_YMD: `${year + 1}02${febEnd}`
+            });
+            const rows = [];
+            for (let page = 1; page <= 5; page += 1) {
+              u.searchParams.set("pIndex", String(page));
+              const j = await getJson(u.toString());
+              const block = j?.SchoolSchedule;
+              if (!block) {
+                const code = j?.RESULT?.CODE;
+                if (code === "INFO-200" && page === 1) return { days: [], events: [], exams: [] };
+                if (code === "INFO-200") break;
+                throw new Error(j?.RESULT?.MESSAGE ? `\uB098\uC774\uC2A4: ${j.RESULT.MESSAGE}` : "\uB098\uC774\uC2A4 \uD559\uC0AC\uC77C\uC815\uC744 \uC77D\uC9C0 \uBABB\uD588\uC5B4\uC694.");
+              }
+              const got = block[1]?.row;
+              if (!Array.isArray(got)) throw new Error("\uB098\uC774\uC2A4 \uD559\uC0AC\uC77C\uC815 \uC751\uB2F5 \uBAA8\uC591\uC774 \uC774\uC0C1\uD574\uC694.");
+              rows.push(...got);
+              const total = Number(block[0]?.head?.[0]?.list_total_count) || 0;
+              if (got.length < 1e3 || rows.length >= total) break;
+            }
+            return toState(rows);
+          }
+        };
+      }
+      module.exports = { neisSchedule, toState };
     }
   });
 
@@ -4114,6 +4252,7 @@ data: ${snap}
       var { createHub } = require_events();
       var { createTodos } = require_todos();
       var { createSchool } = require_school();
+      var { neisSchedule } = require_neis_schedule();
       var { createToday, localDate: localDate2 } = require_today();
       var { createTimetable } = require_timetable();
       var { createTtNotes } = require_ttnotes();
@@ -4146,7 +4285,20 @@ data: ${snap}
         const stickies = createStickies(db, hub);
         const google2 = createGoogle(cfg, hub, db, { ...deps.google, web: opts.googleWeb || offGoogle });
         hub.register("google", () => ({ changedAt: 0 }), "read");
-        const school = createSchool(cfg, deps.school);
+        const schoolDeps = deps.school || (opts.neisKey ? neisSchedule({
+          key: opts.neisKey,
+          getSchool: () => settings.current().school,
+          getJson: deps.neisGetJson || (async (url) => {
+            const res = await fetch(url, { signal: AbortSignal.timeout(1e4) });
+            if (!res.ok) throw new Error(`\uB098\uC774\uC2A4 \uC751\uB2F5 ${res.status}`);
+            try {
+              return await res.json();
+            } catch {
+              throw new Error("\uB098\uC774\uC2A4\uAC00 \uC9C0\uAE08 \uD559\uC0AC\uC77C\uC815\uC744 \uC8FC\uC9C0 \uC54A\uC544\uC694 (\uC810\uAC80 \uC911\uC77C \uC218 \uC788\uC5B4\uC694).");
+            }
+          })
+        }) : void 0);
+        const school = createSchool(cfg, schoolDeps);
         const today = createToday(cfg, { ...deps.today, where: () => settings.where() });
         const changed = opts.onChange || (() => {
         });
@@ -4474,6 +4626,7 @@ data: ${snap}
   var { localDate } = require_today();
   var SQLJS_VERSION = require_package().version;
   var GOOGLE_CLIENT_ID = true ? "768383967666-motbdbd8334fvj06pe02cjn79aqjm4an.apps.googleusercontent.com" : "";
+  var NEIS_KEY = true ? "0240d4554c154347bafb6c95c26e202d" : "";
   var nativeFetch = window.fetch.bind(window);
   var kv = /* @__PURE__ */ (() => {
     let dbp = null;
@@ -4715,6 +4868,7 @@ data: ${snap}
       engine = createEngine(bytes || null, {
         googleWeb: google,
         openUrl: (url) => window.open(url, "_blank", "noopener,noreferrer"),
+        neisKey: NEIS_KEY,
         onChange
       });
     } catch (err) {

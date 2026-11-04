@@ -160,6 +160,14 @@
   }, 60e3);
 
   listen('todos', render); // 할 일 마감이 바뀌면 달력도
+  // 학교를 바꾸면(배포판) 학사일정을 새로 받는다
+  let schoolKey = null;
+  listen('settings', () => {
+    const sc = state.data.settings?.school;
+    const k = sc ? `${sc.office}:${sc.code}` : '';
+    if (schoolKey !== null && k !== schoolKey) load();
+    schoolKey = k;
+  });
   listen('google', () => { if (state.data.google?.changedAt) load(); }); // 어느 기기에서든 구글 일정을 바꾸면
   // 폰 등 다른 곳에서 바꾼 구글 일정도 2분 안에 보이게
   setInterval(() => document.visibilityState === 'visible' && load(), 2 * 60e3);

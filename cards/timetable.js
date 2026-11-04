@@ -25,20 +25,25 @@
 
   // 이번 주(오늘 띠용)와 보고 있는 주의 학사일정 (방학·공휴일 칸을 흐리게).
   // 주마다 따로 받아 합친다(먼 주로 가도 요청 범위가 커지지 않게). 실패하면 이미 받은 날은 그대로 둔다.
+  // 학교를 바꾸면 dayGen 이 오른다: 옛 학교 응답은 버리고, 같은 주도 새로 받는다
+  let dayGen = 0;
   async function loadWeek(mon) {
     const from = C.ymd(mon);
     const to = C.ymd(C.addDays(mon, 4));
-    if (loading.has(from)) return;
-    loading.add(from);
+    const gen = dayGen;
+    const key = `${gen}:${from}`;
+    if (loading.has(key)) return;
+    loading.add(key);
     try {
       const r = await api('GET', `/api/calendar?from=${from}&to=${to}`);
+      if (gen !== dayGen) return;
       for (let d = C.fromYmd(from); C.ymd(d) <= to; d = C.addDays(d, 1)) delete days[C.ymd(d)];
       Object.assign(days, r.days || {});
       build();
     } catch {
       /* 모르는 날은 수업일로 본다 (이미 받은 날 정보는 유지) */
     } finally {
-      loading.delete(from);
+      loading.delete(key);
     }
   }
   function loadDays() {
@@ -550,6 +555,14 @@
   $('tt-edit').addEventListener('click', () => { editing = !editing; build(); });
 
   listen('timetable', build);
+  // 학교를 바꾸면(배포판) 학사일정(방학·휴업일)을 새로 받는다
+  let schoolKey = null;
+  listen('settings', () => {
+    const sc = window.Dash.state.data.settings?.school;
+    const k = sc ? `${sc.office}:${sc.code}` : '';
+    if (schoolKey !== null && k !== schoolKey) { dayGen += 1; for (const d of Object.keys(days)) delete days[d]; loadDays(); }
+    schoolKey = k;
+  });
 
   // 20초마다 칸 채우기·띠 문구. 날짜가 바뀌어 주말→월요일이 되면 보는 주도 이번 주로.
   let lastDay = todayStr();
