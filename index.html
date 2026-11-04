@@ -2,16 +2,16 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; img-src 'self' data: blob:; connect-src 'self' https://open.neis.go.kr https://api.open-meteo.com https://geocoding-api.open-meteo.com https://www.googleapis.com https://oauth2.googleapis.com https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; img-src 'self' data: blob:; connect-src 'self' http://127.0.0.1:47615 https://open.neis.go.kr https://api.open-meteo.com https://geocoding-api.open-meteo.com https://www.googleapis.com https://oauth2.googleapis.com https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; object-src 'none'; base-uri 'none'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>학교 대시보드</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=0.1.0-050107b427">
-  <link rel="icon" href="./icon.svg?v=0.1.0-050107b427" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest?v=0.1.0-13e1499338">
+  <link rel="icon" href="./icon.svg?v=0.1.0-13e1499338" type="image/svg+xml">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#181b21">
   
-  <link rel="stylesheet" href="./style.css?v=0.1.0-050107b427">
+  <link rel="stylesheet" href="./style.css?v=0.1.0-13e1499338">
 </head>
 <body data-edition="teacher" data-host="web">
   <header class="top">
@@ -136,6 +136,18 @@
         <div class="card-head"><h2>포스트잇</h2><button id="sticky-add" class="ghost small-btn" type="button">+ 새 메모</button></div>
         <div id="sticky-list" class="sticky-list"></div>
         <p id="sticky-msg" class="msg" role="alert"></p>
+      </section>
+      <section class="card ai-card" id="card-ai" aria-label="AI 대화" hidden>
+        <div class="card-head"><h2>AI 대화</h2>
+          <div class="ai-head-acts">
+            <select id="ai-history" class="ai-history" aria-label="지난 대화" hidden></select>
+            <button id="ai-new" class="ghost small-btn" type="button" hidden>새 대화</button>
+            <a id="ai-web" class="ghost small-btn ai-link" href="https://claude.ai/new" target="_blank" rel="noopener noreferrer" title="claude.ai 를 새 창으로">웹</a>
+            <a id="ai-app" class="ghost small-btn ai-link" href="claude://" title="Claude 앱 열기">앱</a>
+          </div>
+        </div>
+        <div id="ai-body" class="ai-body"></div>
+        <p id="ai-msg" class="msg" role="alert"></p>
       </section>
       
     </div>
@@ -345,21 +357,22 @@
   
 
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script src="./local.js?v=0.1.0-050107b427"></script>
-  <script src="./cards/calendar-logic.js?v=0.1.0-050107b427"></script>
-  <script src="./app.js?v=0.1.0-050107b427"></script>
+  <script src="./local.js?v=0.1.0-13e1499338"></script>
+  <script src="./cards/calendar-logic.js?v=0.1.0-13e1499338"></script>
+  <script src="./app.js?v=0.1.0-13e1499338"></script>
   
-  <script src="./cards/today.js?v=0.1.0-050107b427"></script>
-  <script src="./cards/calendar.js?v=0.1.0-050107b427"></script>
-  <script src="./cards/timetable-logic.js?v=0.1.0-050107b427"></script>
-  <script src="./cards/timetable.js?v=0.1.0-050107b427"></script>
-  <script src="./cards/ttnote.js?v=0.1.0-050107b427"></script>
-  <script src="./cards/gcal.js?v=0.1.0-050107b427"></script>
-  <script src="./cards/clip.js?v=0.1.0-050107b427"></script>
+  <script src="./cards/today.js?v=0.1.0-13e1499338"></script>
+  <script src="./cards/calendar.js?v=0.1.0-13e1499338"></script>
+  <script src="./cards/timetable-logic.js?v=0.1.0-13e1499338"></script>
+  <script src="./cards/timetable.js?v=0.1.0-13e1499338"></script>
+  <script src="./cards/ttnote.js?v=0.1.0-13e1499338"></script>
+  <script src="./cards/gcal.js?v=0.1.0-13e1499338"></script>
+  <script src="./cards/clip.js?v=0.1.0-13e1499338"></script>
   
-  <script src="./cards/sticky.js?v=0.1.0-050107b427"></script>
+  <script src="./cards/sticky.js?v=0.1.0-13e1499338"></script>
   
-  <script src="./cards/fold.js?v=0.1.0-050107b427"></script>
-  <script src="./cards/teacher.js?v=0.1.0-050107b427"></script>
+  <script src="./cards/ai.js?v=0.1.0-13e1499338"></script>
+  <script src="./cards/fold.js?v=0.1.0-13e1499338"></script>
+  <script src="./cards/teacher.js?v=0.1.0-13e1499338"></script>
 </body>
 </html>

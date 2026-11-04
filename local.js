@@ -11,9 +11,9 @@
     }
   });
 
-  // ../../../../../../../../Users/juvilan_mini/work/projects/dashboard/web/node_modules/sql.js/dist/sql-wasm.js
+  // node_modules/sql.js/dist/sql-wasm.js
   var require_sql_wasm = __commonJS({
-    "../../../../../../../../Users/juvilan_mini/work/projects/dashboard/web/node_modules/sql.js/dist/sql-wasm.js"(exports, module) {
+    "node_modules/sql.js/dist/sql-wasm.js"(exports, module) {
       var initSqlJsPromise = void 0;
       var initSqlJs2 = function(moduleConfig) {
         if (initSqlJsPromise) {
@@ -4574,9 +4574,9 @@ data: ${snap}
     }
   });
 
-  // ../../../../../../../../Users/juvilan_mini/work/projects/dashboard/web/node_modules/sql.js/package.json
+  // node_modules/sql.js/package.json
   var require_package = __commonJS({
-    "../../../../../../../../Users/juvilan_mini/work/projects/dashboard/web/node_modules/sql.js/package.json"(exports, module) {
+    "node_modules/sql.js/package.json"(exports, module) {
       module.exports = {
         name: "sql.js",
         version: "1.13.0",
