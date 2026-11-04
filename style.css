@@ -717,3 +717,31 @@ body[data-edition="teacher"] .strip.tiles #strip-exam::before { content: "D-day"
 
 /* 웹판: 실시간 연결 표시는 필요 없다 (이 브라우저 안에서 돈다). 저장 실패 경고만 보인다 */
 body[data-host="web"] #conn:not([data-state="down"]) { display: none; }
+
+/* 음악(스포티파이) 칸 */
+.sp-card .row input { flex: 1; min-width: 0; }
+.sp-now { display: flex; gap: 10px; align-items: center; margin-top: 6px; min-height: 48px; }
+.sp-art { width: 48px; height: 48px; border-radius: 6px; object-fit: cover; flex: none; }
+.sp-meta { min-width: 0; }
+.sp-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-artist { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-bar { height: 4px; background: var(--line); border-radius: 2px; margin: 8px 0 2px; overflow: hidden; }
+.sp-progress { height: 100%; width: 0; background: #1db954; }
+.sp-ctrls, .sp-more { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.sp-ctrls .small-btn, .sp-more .small-btn { margin-top: 6px; }
+.sp-ctrls select, .sp-more select { flex: 1; min-width: 120px; margin-top: 6px; font-size: 13px; }
+
+/* 칸 접기 (제목을 누름) */
+.fold-btn { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font: inherit; color: inherit; }
+.fold-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.fold-mark::before { content: '▾'; font-size: .8em; color: var(--muted); }
+.card.folded .fold-mark::before { content: '▸'; }
+.card.folded > :not(.card-head) { display: none !important; }
+.card.folded { padding-bottom: 10px; }
+@media (min-width: 1200px) and (min-height: 720px) {
+  .col-right > #card-memo.folded { flex: none; min-height: 0; }
+  /* 공유 메모를 접으면 클립보드가 남는 높이를 쓴다 */
+  .col-right:has(> #card-memo.folded) > #card-clip:not(.folded) { flex: 1 1 0; min-height: 200px; display: flex; flex-direction: column; }
+  .col-right:has(> #card-memo.folded) > #card-clip:not(.folded) .clip-list { flex: 1 1 0; max-height: none; overflow-y: auto; }
+}
+#sp-redirect { word-break: break-all; }
