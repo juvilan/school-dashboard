@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://open.neis.go.kr https://api.open-meteo.com https://geocoding-api.open-meteo.com; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>학교 대시보드</title>
+  <link rel="manifest" href="./manifest.webmanifest?v=0.1.0-ed17f58b1d">
+  <link rel="icon" href="./icon.svg?v=0.1.0-ed17f58b1d" type="image/svg+xml">
+  <meta name="theme-color" content="#1f6feb">
+  
+  <link rel="stylesheet" href="./style.css?v=0.1.0-ed17f58b1d">
+</head>
+<body data-edition="teacher" data-host="web">
+  <header class="top">
+    <h1>대시보드</h1>
+    <nav class="links" aria-label="바로가기">
+      
+      <a id="ln-portal" class="link-btn" href="https://sen.eduptl.kr/bpm_lgn_lg00_001.do?noEpSession" target="_blank" rel="noopener noreferrer" title="서울 업무포털 (새 탭)">업무포털</a>
+    </nav>
+    <span class="spacer"></span>
+    <span id="conn" class="conn" data-state="connecting" title="실시간 연결 상태">연결 중…</span>
+    
+    <button id="t-open" class="ghost" type="button">설정</button>
+  </header>
+
+  <section id="strip" class="strip tiles" aria-label="오늘">
+    <div class="strip-date"><strong id="strip-date"></strong><span id="strip-daytype" class="muted"></span></div>
+    <div class="strip-item" id="strip-weather"><span class="muted">날씨 불러오는 중…</span></div>
+    <div class="strip-item" id="strip-exam"></div>
+    <button class="strip-item strip-meal" id="strip-meal" type="button" aria-expanded="false"><span class="muted">급식 불러오는 중…</span></button>
+    <button class="strip-warn" id="strip-warn" type="button" hidden aria-label="못 불러온 정보 보기"></button>
+  </section>
+  <p id="strip-warn-msg" class="strip-warn-msg msg" hidden></p>
+  <div id="meal-detail" class="meal-detail" hidden></div>
+
+  <main class="layout">
+    <div class="col col-left">
+      <section class="card" id="card-tt">
+        <div class="card-head">
+          <h2>내 시간표</h2>
+          <div class="row tt-nav">
+            <button id="tt-prev" class="ghost icon" type="button" aria-label="지난 주">‹</button>
+            <button id="tt-this" class="ghost small-btn" type="button" title="이번 주로"><span id="tt-week"></span></button>
+            <button id="tt-next" class="ghost icon" type="button" aria-label="다음 주">›</button>
+            <button id="tt-edit" class="ghost small-btn" type="button" aria-pressed="false">편집</button>
+          </div>
+        </div>
+        <div id="tt-paste-bar" class="tt-paste-bar" hidden>📋 <strong id="tt-paste-what"></strong> 복사됨 · 칸 고르고 Ctrl+V(또는 붙이기)<button id="tt-paste-end" class="ghost small-btn" type="button">복사 취소</button></div>
+        <div id="tt-actions" class="tt-actions" hidden>
+          <strong id="tt-act-where"></strong>
+          <button id="tt-act-edit" class="ghost small-btn" type="button">편집</button>
+          <button id="tt-act-copy" class="ghost small-btn" type="button">복사</button>
+          <button id="tt-act-paste" class="ghost small-btn" type="button">붙이기</button>
+          <button id="tt-act-clear" class="ghost small-btn" type="button">비우기</button>
+        </div>
+        <div id="tt-grid" class="tt-grid"></div>
+        <div class="tt-now muted strip-period" id="strip-period" role="status">시간표 불러오는 중…</div>
+        <div class="row tt-foot">
+          <p id="tt-hint" class="muted small"></p>
+          <div class="row">
+            <button id="tt-bulk-open" class="ghost small-btn" type="button" hidden>표 붙여넣기</button>
+            <button id="tt-copy-all" class="ghost small-btn" type="button" hidden>표 복사</button>
+            <button id="tt-bells-open" class="ghost small-btn" type="button" hidden>종 시간</button>
+          </div>
+        </div>
+        <p id="tt-msg" class="msg" role="alert"></p>
+      </section>
+      <section class="card cal-card" id="card-cal">
+        <div class="cal-head">
+          <div class="row">
+            <button id="cal-prev" class="ghost icon" type="button" aria-label="이전">‹</button>
+            <h2 id="cal-title"></h2>
+            <button id="cal-next" class="ghost icon" type="button" aria-label="다음">›</button>
+            <button id="cal-today" class="ghost small-btn" type="button">오늘</button>
+          </div>
+          <div class="row">
+            <span class="legend" aria-label="색 구분"><span class="lg-item" title="할 일 마감"><i class="lg todo"></i><span class="lg-t">할 일</span></span><span class="lg-item g-only" title="구글 일정"><i class="lg google"></i><span class="lg-t">구글</span></span></span>
+            <button id="cal-google" class="ghost small-btn g-only" type="button">구글 연결</button>
+            <div class="seg" role="group" aria-label="보기">
+              <button id="cal-month" type="button" aria-pressed="true">월</button>
+              <button id="cal-week" type="button" aria-pressed="false">주</button>
+            </div>
+          </div>
+        </div>
+        <div id="cal-grid" class="cal-grid"></div>
+        <p id="cal-msg" class="muted small"></p>
+      </section>
+    </div>
+    <div class="col col-main">
+      
+      <section class="card" id="card-go">
+        <div class="card-head"><h2>바로가기</h2><button id="go-edit" class="ghost small-btn" type="button">고치기</button></div>
+        <form id="go-search" class="go-search" role="search">
+          <input id="go-q" type="search" autocomplete="off" placeholder="검색어를 적고 Enter" aria-label="검색어">
+          <select id="go-engine" aria-label="검색 사이트"><option value="naver">네이버</option><option value="google">구글</option></select>
+          <button type="submit">검색</button>
+        </form>
+        <div id="go-tiles" class="go-tiles"></div>
+        <p id="go-msg" class="msg" role="alert"></p>
+      </section>
+      
+      
+    </div>
+    <div class="col col-right">
+      
+      <section class="card" id="card-sticky">
+        <div class="card-head"><h2>포스트잇</h2><button id="sticky-add" class="ghost small-btn" type="button">+ 새 메모</button></div>
+        <div id="sticky-list" class="sticky-list"></div>
+        <p id="sticky-msg" class="msg" role="alert"></p>
+      </section>
+      
+    </div>
+  </main>
+
+  <dialog id="day-dialog">
+    <form id="day-form" class="tt-form day-form">
+      <h2 id="d-head"></h2>
+      <div id="d-list-wrap"><div id="d-list" class="d-list"></div></div>
+      <div id="d-modes" class="seg g-only" role="group" aria-label="무엇을 추가할까요">
+        <button id="d-mode-event" type="button" aria-pressed="true">구글 일정</button>
+        <button id="d-mode-todo" type="button" aria-pressed="false">할 일</button>
+      </div>
+      <div id="d-event">
+        <div id="d-need-google" class="muted small" hidden>구글 캘린더와 연결하면 여기서 일정을 넣을 수 있어요. <button id="d-connect" class="ghost small-btn" type="button">구글 연결</button></div>
+        <label for="d-title">제목</label>
+        <input id="d-title" maxlength="200" autocomplete="off" placeholder="예: 교과협의회">
+        <label class="small"><input type="checkbox" id="d-allday" checked> 하루 종일</label>
+        <div class="row">
+          <div><label for="d-date">시작 날짜</label><input id="d-date" type="date"></div>
+          <div><label for="d-end">끝 날짜</label><input id="d-end" type="date"></div>
+        </div>
+        <div id="d-times" class="row">
+          <div><label for="d-start">시작</label><input id="d-start" type="time"></div>
+          <div><label for="d-endtime">끝</label><input id="d-endtime" type="time"></div>
+        </div>
+        <label for="d-cal">달력</label>
+        <select id="d-cal"></select>
+      </div>
+      <div id="d-todo" hidden>
+        <label for="d-todo-title">할 일</label>
+        <input id="d-todo-title" maxlength="300" autocomplete="off" placeholder="예: 평가계획 제출">
+        <label for="d-todo-due">마감일</label>
+        <input id="d-todo-due" type="date">
+      </div>
+      <div class="row">
+        <button id="d-save" type="submit">저장</button>
+        <button id="d-delete" class="danger" type="button" hidden>지우기</button>
+        <button id="d-cancel" class="ghost" type="button">닫기</button>
+      </div>
+      <p id="d-msg" class="msg" role="alert"></p>
+    </form>
+  </dialog>
+
+  <dialog id="google-dialog">
+    <div class="tt-form g-form">
+      <h2>구글 캘린더 연결</h2>
+      <p id="g-state" class="muted small"></p>
+      <div id="g-step-client">
+        <p class="small">구글 클라우드에서 만든 <strong>데스크톱 앱</strong> OAuth 클라이언트의 JSON 파일 내용을 그대로 붙여넣어 주세요. M6 안에만 저장되고 화면에는 다시 보이지 않아요.</p>
+        <textarea id="g-client" rows="3" spellcheck="false" placeholder='{"installed":{"client_id":"…"}}' aria-label="클라이언트 JSON"></textarea>
+        <button id="g-save-client" type="button">저장</button>
+      </div>
+      <div id="g-step-login" hidden>
+        <ol class="small">
+          <li><button id="g-open" type="button">구글 로그인 열기</button> → 새 탭에서 로그인하고 <strong>모두 허용</strong>을 눌러요. ("확인되지 않은 앱" 경고가 나오면 '고급' → '이동')</li>
+          <li class="p-paste">마지막에 "연결할 수 없음" 페이지가 나와요. 정상이에요. 그 탭의 <strong>주소창 주소를 통째로 복사</strong>해서 아래에 붙여넣어요.</li>
+        </ol>
+        <input id="g-url" class="p-paste" autocomplete="off" spellcheck="false" placeholder="http://127.0.0.1:8765/?state=…&code=…" aria-label="돌아온 주소">
+        <button id="g-finish" class="p-paste" type="button">연결</button>
+        <p id="g-wait" class="small muted" hidden>브라우저에서 로그인하고 <strong>모두 허용</strong>을 누르면 여기가 저절로 바뀌어요.</p>
+      </div>
+      <div id="g-linked" hidden>
+        <p class="small">보여 줄 달력에 체크하고, 새 일정을 넣을 달력을 오른쪽 동그라미로 골라요.</p>
+        <div id="g-cals" class="g-cals"></div>
+        <div class="row">
+          <button id="g-save-cals" type="button">저장</button>
+          <button id="g-disconnect" class="danger" type="button">연결 끊기</button>
+        </div>
+      </div>
+      <p id="g-msg" class="msg" role="alert"></p>
+      <div class="row"><button id="g-close" class="ghost" type="button">닫기</button></div>
+    </div>
+  </dialog>
+
+  <dialog id="tt-dialog">
+    <form id="tt-form" class="tt-form">
+      <h2 id="tt-d-title"></h2>
+      <p id="tt-d-base" class="muted small"></p>
+      <label for="tt-subject">과목</label>
+      <input id="tt-subject" maxlength="20" placeholder="예: 수학 (비우면 수업 없음)" autocomplete="off">
+      <div class="row">
+        <div><label for="tt-klass">반</label><input id="tt-klass" maxlength="20" placeholder="예: 2-3" autocomplete="off"></div>
+        <div><label for="tt-room">교실</label><input id="tt-room" maxlength="20" placeholder="예: 수학실" autocomplete="off"></div>
+      </div>
+      <div class="tt-color-row"><span class="muted small">색 (과목+반이 같은 수업 모두)</span><div id="tt-colors" class="tt-swatches"></div></div>
+      <fieldset>
+        <legend>어디에 적용할까요?</legend>
+        <label><input type="radio" name="tt-scope" id="tt-scope-week"> <span id="tt-scope-week-l"></span></label>
+        <label><input type="radio" name="tt-scope" id="tt-scope-day"> <span id="tt-scope-day-l"></span></label>
+      </fieldset>
+      <div class="row">
+        <button type="submit">저장</button>
+        <button id="tt-dayoff" class="ghost" type="button">이 날만 수업 없음</button>
+        <button id="tt-reset" class="ghost" type="button" hidden>기본으로 되돌리기</button>
+        <button id="tt-copy-one" class="ghost" type="button">복사해서 여러 칸에</button>
+        <button id="tt-cancel" class="ghost" type="button">닫기</button>
+      </div>
+      <p id="tt-d-msg" class="msg" role="alert"></p>
+    </form>
+  </dialog>
+
+  <dialog id="ttn-dialog">
+    <form id="ttn-form" class="tt-form">
+      <h2 id="ttn-title"></h2>
+      <p id="ttn-lesson" class="muted small"></p>
+      <div class="ttn-quick" id="ttn-quick">
+        <button type="button" class="ghost small-btn" data-tag="수행평가">수행평가</button>
+        <button type="button" class="ghost small-btn" data-tag="결석">결석</button>
+        <button type="button" class="ghost small-btn" data-tag="지각·조퇴">지각·조퇴</button>
+        <button type="button" class="ghost small-btn" data-tag="진도">진도</button>
+        <button type="button" class="ghost small-btn" data-tag="특이사항">특이사항</button>
+      </div>
+      <textarea id="ttn-body" class="ttn-body" maxlength="1000" placeholder="예: 수행평가 1차(발표) 함&#10;결석: 김OO&#10;특이사항: 프로젝터 고장" aria-label="수업 메모"></textarea>
+      <div id="ttn-conflict" hidden>
+        <p class="muted small">다른 기기에서 먼저 고친 내용이에요. 저장하거나 닫으면 지금 쓴 글로 이 내용을 덮어요.</p>
+        <pre id="ttn-other" class="ttn-other"></pre>
+      </div>
+      <div class="row">
+        <button type="submit" id="ttn-save">저장</button>
+        <button id="ttn-delete" class="ghost" type="button">지우기</button>
+        <button id="ttn-close" class="ghost" type="button">닫기</button>
+      </div>
+      <p class="muted small">Ctrl+Enter 저장 · 닫으면 쓴 내용은 저장돼요</p>
+      <p id="ttn-msg" class="msg" role="alert"></p>
+    </form>
+  </dialog>
+
+  <dialog id="tt-bulk">
+    <form id="tt-bulk-form" class="tt-form tt-bulk-form">
+      <h2>표 붙여넣기</h2>
+      <p class="muted small">엑셀·한글·나이스에서 월~금 × 교시 표를 복사해 붙여넣으면 기본 시간표(매주)에 한꺼번에 들어가요. 요일 머리줄과 교시 번호 열은 있어도 되고 없어도 돼요. 칸에는 "수학 2-3"처럼 과목과 반을 적어 주세요.</p>
+      <textarea id="tt-bulk-text" rows="5" placeholder="여기에 붙여넣기 (Ctrl+V)" aria-label="붙여넣을 표"></textarea>
+      <label class="small"><input type="checkbox" id="tt-bulk-keep" checked> 빈 칸은 지금 시간표 그대로 두기 (끄면 빈 칸은 비워요)</label>
+      <div id="tt-bulk-preview" class="tt-grid tt-bulk-preview" aria-label="미리 보기"></div>
+      <p id="tt-bulk-info" class="muted small"></p>
+      <div class="row">
+        <button id="tt-bulk-save" type="submit">넣기</button>
+        <button id="tt-bulk-cancel" class="ghost" type="button">닫기</button>
+      </div>
+      <p id="tt-bulk-msg" class="msg" role="alert"></p>
+    </form>
+  </dialog>
+
+  <dialog id="tt-bells">
+    <form id="tt-bells-form" class="tt-form">
+      <h2>종 시간</h2>
+      <div id="tt-bell-rows"></div>
+      <div class="row"><button id="tt-bell-add" class="ghost small-btn" type="button">교시 추가</button><button id="tt-bell-del" class="ghost small-btn" type="button">마지막 교시 빼기</button></div>
+      <div id="tt-bell-lunch"></div>
+      <div class="row">
+        <button type="submit">저장</button>
+        <button id="tt-bells-cancel" class="ghost" type="button">닫기</button>
+      </div>
+      <p id="tt-b-msg" class="msg" role="alert"></p>
+    </form>
+  </dialog>
+
+  
+  <dialog id="t-settings">
+    <div class="tt-form t-form">
+      <div class="dialog-head"><h2>설정</h2><button id="t-close" class="ghost" type="button">닫기</button></div>
+      <p id="t-first" class="t-first" hidden>처음 쓰시네요! 먼저 <strong>교육청</strong>을 골라 주세요. 업무포털·나이스 버튼과 날씨가 맞춰져요. 급식까지 보려면 아래에서 학교도 찾아 주세요.</p>
+      <section>
+        <h3>교육청</h3>
+        <select id="t-office" aria-label="교육청"><option value="">교육청을 고르세요</option></select>
+        <p class="small muted">업무포털·나이스 버튼이 이 교육청 주소로 정해져요.</p>
+      </section>
+      <section>
+        <h3>학교 <span class="small muted">(급식 보기용, 안 해도 됨)</span></h3>
+        <p id="t-school-now" class="small"></p>
+        <form id="t-school-form" class="row">
+          <input id="t-school-q" autocomplete="off" placeholder="학교 이름 (예: 영일고)" aria-label="학교 이름">
+          <button type="submit">찾기</button>
+        </form>
+        <ul id="t-school-list" class="t-school-list"></ul>
+      </section>
+      <section>
+        <h3>업무포털</h3>
+        <label for="t-portal">주소 (학교를 고르면 그 교육청 업무포털 로그인 화면으로 정해져요)</label>
+        <input id="t-portal" autocomplete="off" spellcheck="false">
+        
+        <button id="t-portal-save" type="button">저장</button>
+      </section>
+      
+      <section>
+        <h3>자료 보관</h3>
+        <p class="small muted">자료(시간표·수업 메모·할 일·포스트잇)는 <strong>이 PC의 이 브라우저 안에만</strong> 저장돼요. 어디로도 보내지 않아요. 브라우저의 "인터넷 사용 기록 삭제"에서 쿠키·사이트 데이터를 지우면 함께 지워지니, 가끔 백업 파일을 받아 두세요. 다른 PC로 옮길 때도 이 파일을 불러오면 돼요.</p>
+        <div class="row"><button id="w-backup" type="button">백업 파일 받기</button><button id="w-restore" class="ghost" type="button">백업 파일 불러오기</button></div>
+        <input id="w-restore-file" type="file" accept=".db" hidden>
+        <p id="w-backup-msg" class="small muted"></p>
+      </section>
+      <p id="t-msg" class="msg" role="alert"></p>
+    </div>
+  </dialog>
+  <dialog id="go-dialog">
+    <div class="tt-form t-form">
+      <div class="dialog-head"><h2>바로가기 고치기</h2><button id="go-close" class="ghost" type="button">닫기</button></div>
+      <ul id="go-rows" class="go-rows"></ul>
+      <form id="go-add" class="go-add">
+        <input id="go-add-title" maxlength="20" placeholder="이름 (예: 에듀파인)" aria-label="이름" autocomplete="off">
+        <input id="go-add-url" maxlength="500" placeholder="주소 (예: naver.com)" aria-label="주소" autocomplete="off" spellcheck="false">
+        <button type="submit">추가</button>
+      </form>
+      <p id="go-d-msg" class="msg" role="alert"></p>
+    </div>
+  </dialog>
+  
+  
+
+  <script src="./local.js?v=0.1.0-ed17f58b1d"></script>
+  <script src="./cards/calendar-logic.js?v=0.1.0-ed17f58b1d"></script>
+  <script src="./app.js?v=0.1.0-ed17f58b1d"></script>
+  
+  <script src="./cards/today.js?v=0.1.0-ed17f58b1d"></script>
+  <script src="./cards/calendar.js?v=0.1.0-ed17f58b1d"></script>
+  <script src="./cards/timetable-logic.js?v=0.1.0-ed17f58b1d"></script>
+  <script src="./cards/timetable.js?v=0.1.0-ed17f58b1d"></script>
+  <script src="./cards/ttnote.js?v=0.1.0-ed17f58b1d"></script>
+  <script src="./cards/gcal.js?v=0.1.0-ed17f58b1d"></script>
+  
+  <script src="./cards/sticky.js?v=0.1.0-ed17f58b1d"></script>
+  
+  <script src="./cards/teacher.js?v=0.1.0-ed17f58b1d"></script>
+</body>
+</html>
