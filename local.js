@@ -3901,13 +3901,18 @@ data: ${snap}
         for (const k of Object.keys(REGION).sort((a, b) => b.length - a.length)) if (s.startsWith(k)) return REGION[k];
         return s ? [s.slice(0, 2)] : [];
       }
-      function defaultLinks(homepage) {
+      var RIRO = { B10: { "7010216": "https://youngil.riroschool.kr/" } };
+      function defaultLinks(school) {
+        const riro = school ? RIRO[school.office]?.[school.code] : null;
+        const seoul = school?.office === "B10";
         return [
-          ...homepage ? [{ title: "\uD559\uAD50 \uD648\uD398\uC774\uC9C0", url: homepage }] : [],
-          { title: "\uB124\uC774\uBC84", url: "https://www.naver.com/" },
-          { title: "\uAD6C\uAE00", url: "https://www.google.com/" },
-          { title: "\uC720\uD29C\uBE0C", url: "https://www.youtube.com/" },
-          { title: "\uAD6C\uAE00 \uD074\uB798\uC2A4\uB8F8", url: "https://classroom.google.com/" }
+          ...school?.homepage ? [{ title: "\uD559\uAD50 \uD648\uD398\uC774\uC9C0", url: school.homepage }] : [],
+          ...riro ? [{ title: "\uB9AC\uB85C\uC2A4\uCFE8", url: riro }] : [],
+          ...seoul ? [
+            { title: "EVPN", url: "https://evpn.sen.go.kr/custom/index.html" },
+            { title: "SEN GPT", url: "https://gov.wrks.ai/ko/chat" }
+          ] : [],
+          { title: "\uAD6C\uAE00", url: "https://www.google.com/" }
         ];
       }
       function createSettings(db, hub, deps = {}) {
@@ -3949,7 +3954,7 @@ data: ${snap}
             officeName: office ? OFFICES[office][0] : "",
             neis: neisUrl(office),
             portal: read("portal", { url: portalUrl(office), auto: false }),
-            links: read("links", defaultLinks(school?.homepage)),
+            links: read("links", defaultLinks(school)),
             search: read("search", "naver"),
             ddays: read("ddays", [])
             // [{ ref: 'google:달력:일정' | 'todo:번호', title, date }]
@@ -4036,7 +4041,7 @@ data: ${snap}
               write("school", school);
               write("office", school.office);
               followPortal(before, school.office);
-              if (!q.get.get("links")) write("links", defaultLinks(school.homepage));
+              if (!q.get.get("links")) write("links", defaultLinks(school));
             });
           },
           // 교육청만 고르기. 다른 교육청으로 바꾸면 골라 둔 학교는 지운다 (급식이 엉뚱한 학교로 가지 않게)
@@ -4097,7 +4102,7 @@ data: ${snap}
           }
         };
       }
-      module.exports = { createSettings, cleanUrl, portalUrl, neisUrl, OFFICES };
+      module.exports = { createSettings, cleanUrl, portalUrl, neisUrl, defaultLinks, OFFICES };
     }
   });
 

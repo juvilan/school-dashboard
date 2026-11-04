@@ -301,6 +301,24 @@
   });
   $('clip-more').addEventListener('click', () => { showAll = !showAll; render(); });
 
+  $('clip-mac-import')?.addEventListener('click', async () => {
+    const btn = $('clip-mac-import');
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = '맥에서 가져오는 중…';
+    try {
+      await request('POST', '/api/clip/mac-text');
+      selectFilter('text');
+      btn.textContent = '텍스트 목록에 저장됨';
+      msg('');
+    } catch (err) {
+      btn.textContent = '맥 텍스트 가져오기';
+      msg(err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
   $('clip-filters').addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-kind]');
     if (btn) selectFilter(btn.dataset.kind);
