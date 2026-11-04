@@ -4053,6 +4053,16 @@ data: ${snap}
           { title: "\uAD6C\uAE00", url: "https://www.google.com/" }
         ];
       }
+      function oldDefaultLinks(homepage) {
+        return [
+          ...homepage ? [{ title: "\uD559\uAD50 \uD648\uD398\uC774\uC9C0", url: homepage }] : [],
+          { title: "\uB124\uC774\uBC84", url: "https://www.naver.com/" },
+          { title: "\uAD6C\uAE00", url: "https://www.google.com/" },
+          { title: "\uC720\uD29C\uBE0C", url: "https://www.youtube.com/" },
+          { title: "\uAD6C\uAE00 \uD074\uB798\uC2A4\uB8F8", url: "https://classroom.google.com/" }
+        ];
+      }
+      var sameLinks = (a, b) => Array.isArray(a) && a.length === b.length && a.every((l, i) => l?.title === b[i].title && l?.url === b[i].url);
       function createSettings(db, hub, deps = {}) {
         const getJson = deps.getJson || (async (url) => {
           const res = await fetch(url, { signal: AbortSignal.timeout(6e3) });
@@ -4099,6 +4109,10 @@ data: ${snap}
           };
         }
         hub.register("settings", current, "session");
+        {
+          const school = read("school", null);
+          if (sameLinks(read("links", null), oldDefaultLinks(school?.homepage))) write("links", defaultLinks(school));
+        }
         function change(fn) {
           const { data, v } = tx(db, () => {
             fn();
@@ -4179,7 +4193,7 @@ data: ${snap}
               write("school", school);
               write("office", school.office);
               followPortal(before, school.office);
-              if (!q.get.get("links")) write("links", defaultLinks(school));
+              if (!q.get.get("links") || sameLinks(read("links", null), oldDefaultLinks(before.school?.homepage))) write("links", defaultLinks(school));
             });
           },
           // 교육청만 고르기. 다른 교육청으로 바꾸면 골라 둔 학교는 지운다 (급식이 엉뚱한 학교로 가지 않게)
