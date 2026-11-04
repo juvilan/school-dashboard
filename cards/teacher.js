@@ -147,7 +147,6 @@
     $('t-office').value = s.office || '';
     $('t-school-now').textContent = s.school ? `지금: ${s.school.name} (${s.school.officeName}) · ${s.school.address}` : '아직 고르지 않았어요.';
     if (document.activeElement !== $('t-portal')) $('t-portal').value = s.portal.url;
-    if ($('t-portal-auto')) $('t-portal-auto').checked = s.portal.auto; // 웹판에는 없음 (켤 때 같이 열기는 프로그램판만)
   }
   function openSettings() {
     renderSettings();
@@ -209,21 +208,11 @@
 
   $('t-portal-save').addEventListener('click', async () => {
     try {
-      await api('PUT', '/api/settings/portal', { url: $('t-portal').value.trim(), auto: Boolean($('t-portal-auto')?.checked) });
+      await api('PUT', '/api/settings/portal', { url: $('t-portal').value.trim() });
       tmsg('저장했어요.');
     } catch (err) {
       tmsg(err.message);
     }
-  });
-
-  $('t-quit')?.addEventListener('click', async () => {
-    const b = $('t-quit');
-    if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = '정말 끌까요? 한 번 더'; setTimeout(() => { b.dataset.armed = ''; b.textContent = '지금 프로그램 끄기'; }, 3000); return; }
-    try { await api('POST', '/api/quit'); } catch { /* 이미 꺼지는 중 */ }
-    document.body.textContent = '';
-    const p = el('p', 'quit-msg', '프로그램을 껐어요. 이 창은 닫아도 돼요.');
-    document.body.append(p);
-    setTimeout(() => window.close(), 800);
   });
 
   // 처음(학교를 아직 안 골랐을 때) 한 번 설정 창을 연다
