@@ -11,9 +11,9 @@
     }
   });
 
-  // node_modules/sql.js/dist/sql-wasm.js
+  // ../../../../../../../../Users/juvilan_mini/work/projects/dashboard/web/node_modules/sql.js/dist/sql-wasm.js
   var require_sql_wasm = __commonJS({
-    "node_modules/sql.js/dist/sql-wasm.js"(exports, module) {
+    "../../../../../../../../Users/juvilan_mini/work/projects/dashboard/web/node_modules/sql.js/dist/sql-wasm.js"(exports, module) {
       var initSqlJsPromise = void 0;
       var initSqlJs2 = function(moduleConfig) {
         if (initSqlJsPromise) {
@@ -4403,9 +4403,9 @@ data: ${snap}
     }
   });
 
-  // node_modules/sql.js/package.json
+  // ../../../../../../../../Users/juvilan_mini/work/projects/dashboard/web/node_modules/sql.js/package.json
   var require_package = __commonJS({
-    "node_modules/sql.js/package.json"(exports, module) {
+    "../../../../../../../../Users/juvilan_mini/work/projects/dashboard/web/node_modules/sql.js/package.json"(exports, module) {
       module.exports = {
         name: "sql.js",
         version: "1.13.0",
@@ -4864,4 +4864,55 @@ data: ${snap}
   else wireBackup();
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(() => {
   });
+  var installPrompt = null;
+  var showInstall = () => {
+  };
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    installPrompt = e;
+    showInstall();
+  });
+  function wireInstall() {
+    const box = document.getElementById("w-install");
+    if (!box) return;
+    if (matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: window-controls-overlay)").matches) return;
+    const KEY = "install-hint-closed";
+    try {
+      if (Date.now() - Number(localStorage.getItem(KEY) || 0) < 30 * 864e5) return;
+    } catch {
+    }
+    const btn = document.getElementById("w-install-btn");
+    const text = document.getElementById("w-install-text");
+    showInstall = () => {
+      btn.hidden = false;
+      text.textContent = "\uC124\uCE58\uD574\uC11C \uC4F0\uBA74 \uD504\uB85C\uADF8\uB7A8\uCC98\uB7FC \uB530\uB85C \uC5F4\uB824\uC694.";
+      box.hidden = false;
+    };
+    btn.addEventListener("click", async () => {
+      const p = installPrompt;
+      if (!p) return;
+      installPrompt = null;
+      await p.prompt();
+      const { outcome } = await p.userChoice;
+      if (outcome === "accepted") box.hidden = true;
+    });
+    window.addEventListener("appinstalled", () => {
+      box.hidden = true;
+    });
+    document.getElementById("w-install-x").addEventListener("click", () => {
+      box.hidden = true;
+      try {
+        localStorage.setItem(KEY, String(Date.now()));
+      } catch {
+      }
+    });
+    if (installPrompt) showInstall();
+    else if (!("onbeforeinstallprompt" in window)) {
+      btn.hidden = true;
+      text.textContent = "\uD06C\uB86C\uC774\uB098 \uC5E3\uC9C0\uC5D0\uC11C \uC5F4\uBA74 \uC571\uC73C\uB85C \uC124\uCE58\uD574 \uC4F8 \uC218 \uC788\uC5B4\uC694.";
+      box.hidden = false;
+    }
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wireInstall);
+  else wireInstall();
 })();
