@@ -3,21 +3,15 @@
 //    질문을 보내고, 답을 글자 단위로 받는다.
 //  - Gemini(무료): 선생님이 Google AI Studio 에서 받은 API 키로 브라우저가 Gemini API 를 바로 부른다 (설치 없음).
 // 대화 기록은 이 브라우저(localStorage)에만 둔다. 어떤 서버로도 보내지 않는다.
-// 시험 중: 주소 끝에 ?ai=1 을 붙여 한 번 열면 이 브라우저에서 칸이 보인다 (?ai=0 이면 다시 숨김).
 (() => {
   const card = document.getElementById('card-ai');
   if (!card || document.body.dataset.host !== 'web') return;
 
-  // ---- 시험 기간: 켠 브라우저에서만 보이기 ----
+  // 시험 기간에 쓰던 ?ai=1 주소(즐겨찾기 등)는 주소에서만 지운다
   try {
-    const q = new URLSearchParams(location.search).get('ai');
-    if (q === '1') localStorage.setItem('dash-ai', '1');
-    if (q === '0') localStorage.removeItem('dash-ai');
-    if (q !== null) history.replaceState(null, '', location.pathname + location.hash);
-  } catch { /* 저장 안 되면 숨김 */ }
-  let enabled = false;
-  try { enabled = localStorage.getItem('dash-ai') === '1'; } catch { /* 숨김 */ }
-  if (!enabled) { card.remove(); return; }
+    if (new URLSearchParams(location.search).has('ai')) history.replaceState(null, '', location.pathname + location.hash);
+    localStorage.removeItem('dash-ai');
+  } catch { /* 없어도 됨 */ }
   card.hidden = false;
 
   const HELPER = 'http://127.0.0.1:47615';
@@ -33,7 +27,7 @@
     '학생 이름 같은 개인정보가 보이면 다음부터는 가리고 보내 달라고 짧게 안내한다.',
   ].join('\n');
   const STORE = 'dash-ai-convs';
-  // 고를 수 있는 모델 (Claude Code 의 별명 → 늘 그 계열의 최신 모델). 대화용은 Sonnet 이 알맞다
+  // 고를 수 있는 모델 (Claude Code 의 별명 → 늘 그 계열의 최신 모델). Claude 로 대화할 때는 Sonnet 이 알맞다
   const MODELS = [
     ['sonnet', 'Claude Sonnet (추천)', 'Claude 구독 필요. 대화·글쓰기에 알맞고, 사용 한도를 적당히 씀'],
     ['opus', 'Claude Opus (더 깊게)', 'Claude 구독 필요. 어려운 질문에 더 깊게 답하지만, 사용 한도가 훨씬 빨리 참'],
@@ -47,7 +41,7 @@
   let gemini = null; // { key, model }
   try { const g = JSON.parse(localStorage.getItem(GEMINI_KEY)); if (g && typeof g.key === 'string' && typeof g.model === 'string') gemini = g; } catch { /* 없음 */ }
   const MODEL_KEY = 'dash-ai-model';
-  let model = 'sonnet';
+  let model = 'gemini'; // 처음엔 설치 없이 바로 되는 Gemini 무료. Claude 구독이 있으면 골라서 설치
   try { const m = localStorage.getItem(MODEL_KEY); if (MODELS.some(([v]) => v === m)) model = m; } catch { /* 기본값 */ }
   const PLAN = { pro: 'Pro', max: 'Max', team: 'Team', enterprise: 'Enterprise', free: '무료' };
   const MAX_CONVS = 30;
