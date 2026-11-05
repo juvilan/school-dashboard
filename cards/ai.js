@@ -187,7 +187,7 @@
     ol.append(li1);
     ol.append(el('li', '', '구글 계정으로 로그인해요. 개인 Gmail 계정을 권해요 (학교·교육청 계정은 막혀 있을 수 있어요). 처음이면 약관에 동의해요.'));
     const li3 = el('li');
-    li3.append(el('strong', '', 'API 키 만들기'), '(Create API key)를 누르고, 만들어진 키 옆의 복사 버튼을 눌러요. 키는 보통 ', el('code', '', 'AIza'), ' 로 시작해요.');
+    li3.append(el('strong', '', 'API 키 만들기'), '(Create API key)를 누르고, 만들어진 키 옆의 복사 버튼을 눌러요. 키는 영문·숫자가 섞인 긴 글자예요.');
     ol.append(li3);
     ol.append(el('li', '', '아래 칸에 붙여넣고 [연결]을 눌러요.'));
     box.append(ol);
@@ -202,8 +202,9 @@
     f.append(inp, go);
     f.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const key = inp.value.trim();
-      if (!/^[A-Za-z0-9_\-]{20,100}$/.test(key)) { msg('키 모양이 맞지 않아요. 복사한 키를 그대로 붙여넣어 주세요.'); return; }
+      const key = inp.value.replace(/\s+/g, ''); // 복사할 때 끼어든 빈칸·줄바꿈은 뺀다
+      // 키 모양은 구글이 바꾸기도 해서 엄격히 보지 않는다 (맞는지는 아래에서 구글에 물어 확인). 머리글에 넣을 수 있는 글자만.
+      if (!/^[\x21-\x7e]{20,300}$/.test(key)) { msg('키가 너무 짧거나 쓸 수 없는 글자가 있어요. 복사한 키를 그대로 붙여넣어 주세요.'); return; }
       go.disabled = true;
       msg('');
       const gen = ++keyGen;
