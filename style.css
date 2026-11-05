@@ -851,3 +851,7 @@ a.drive-name:hover { color: var(--accent); text-decoration: underline; }
   .col-left > #card-drive { flex: 1 1 0; min-height: 140px; display: flex; flex-direction: column; }
   #card-drive .drive-list { flex: 1 1 0; min-height: 0; max-height: none; }
 }
+.drive-card .card-head { gap: 6px; }
+.drive-card .card-head h2 { margin-right: auto; }
+.drive-card .go-dl { margin-top: 0; padding: 3px 10px; font-size: 13px; border: 1px solid var(--line); border-radius: 8px; color: var(--text); text-decoration: none; white-space: nowrap; }
+.drive-card .go-dl:hover { border-color: var(--accent); color: var(--accent); }

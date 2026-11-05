@@ -170,6 +170,14 @@ try {
   $s.Description = '학교 대시보드 AI 도우미'
   $s.Save()
   Start-Process -FilePath $ps -ArgumentList $argLine -WindowStyle Hidden
+  # 대시보드의 [📁 다운로드 폴더] 버튼도 같이 켜 둔다 (sdash-dl: 주소 → 탐색기로 다운로드 폴더만 엶, 주소 내용은 쓰지 않음)
+  try {
+    $k = 'HKCU:\Software\Classes\sdash-dl'
+    New-Item "$k\shell\open\command" -Force | Out-Null
+    Set-ItemProperty $k '(default)' 'URL:sdash-dl'
+    Set-ItemProperty $k 'URL Protocol' ''
+    Set-ItemProperty "$k\shell\open\command" '(default)' 'explorer.exe shell:Downloads'
+  } catch { }
 
   # 켜졌는지 확인
   $ok = $false

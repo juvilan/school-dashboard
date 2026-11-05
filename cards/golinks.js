@@ -106,10 +106,18 @@
   // ---- [📁 다운로드]: 윈도우 탐색기로 다운로드 폴더 (크롬이 받는 곳과 같은 폴더) ----
   // 웹페이지는 PC 폴더를 직접 열 수 없어서, 처음 한 번 "sdash-dl:" 주소를 윈도우에 등록한다 (내 계정 HKCU 에만).
   // 등록된 명령은 주소 내용(%1)을 받지 않는다 → 무엇이 와도 다운로드 폴더만 연다.
-  const DL_CMD = "powershell -NoProfile -c \"$k='HKCU:\\Software\\Classes\\sdash-dl';$c=$k+'\\shell\\open\\command';ni $c -Force|Out-Null;sp $k '(default)' 'URL:sdash-dl';sp $k 'URL Protocol' '';sp $c '(default)' 'explorer.exe shell:Downloads'\"";
+  // 이 PC 설정(web/ai/pc.ps1): 다운로드 폴더 버튼 + 대시보드에서 받은 파일 바로 열기. Win+R 한 줄 (259자 제한 안)
+  const DL_CMD = "powershell -NoProfile -ExecutionPolicy Bypass -c \"[Net.ServicePointManager]::SecurityProtocol=3072;$f=$env:TEMP+'\\sdash-pc.ps1';try{iwr -useb https://juvilan.github.io/school-dashboard/ai/pc.ps1 -OutFile $f;& $f}catch{$_;pause}\"";
   if (/Windows/i.test(navigator.userAgent)) {
     const dl = $('go-dl');
     dl.hidden = false;
+    // 웹판: 드라이브 칸이 있으면 [파일 고르기] 옆으로 (받은 파일을 바로 찾게)
+    const drive = $('card-drive');
+    if (drive && !drive.hidden) {
+      dl.textContent = '📁 다운로드 폴더';
+      dl.className = 'ghost small-btn go-dl';
+      drive.querySelector('.card-head').insertBefore(dl, $('drive-pick'));
+    }
     $('dl-cmd').textContent = DL_CMD;
     // 등록 전에는 크롬이 아무 표시 없이 무시한다 → 창이 그대로면 등록 안내
     // 한 번이라도 탐색기가 열렸으면(창이 뒤로 감) 그다음부터는 안내를 띄우지 않는다
@@ -124,11 +132,32 @@
     const openDl = () => {
       waiting = true;
       if (ok) return;
-      setTimeout(() => { if (waiting && document.hasFocus() && !$('dl-dialog').open) $('dl-dialog').showModal(); waiting = false; }, 4000);
+      setTimeout(() => {
+        if (waiting && document.hasFocus() && !$('dl-dialog').open) {
+          $('dl-intro').textContent = '탐색기가 안 열렸나요? 이 PC 에 처음 한 번만 설정해 주세요.';
+          $('dl-dialog').showModal();
+        }
+        waiting = false;
+      }, 4000);
     };
     dl.addEventListener('click', openDl);
     window.Dash.openDownloads = () => { openDl(); location.href = 'sdash-dl:open'; };
     $('dl-close').addEventListener('click', () => $('dl-dialog').close());
+    // 처음 한 번(새로 설치했거나 이미 쓰던 선생님이 새로고침했을 때): 등록을 먼저 권한다.
+    // 웹페이지·앱 설치는 PC 설정을 직접 바꿀 수 없어서, 붙여넣기 한 번은 선생님이 해야 한다.
+    const standalone = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: window-controls-overlay)').matches;
+    let asked = false;
+    try { asked = localStorage.getItem('dash-dl-asked') === '1'; } catch { asked = true; }
+    if (!ok && !asked) {
+      $('dl-intro').textContent = `${standalone ? '앱 설치를 마쳤어요! ' : '새 기능이에요! '}이 PC 에 한 번만 설정해 두면 [📁 다운로드] 버튼이 탐색기로 다운로드 폴더를 열어요. (지금 말고 나중에 하려면 [닫기] → 버튼을 누르면 이 안내가 다시 나와요)`;
+      // 다른 창(처음 설정 등)이 떠 있으면 닫힐 때까지 기다렸다가 한 번만
+      const tryShow = () => {
+        if (document.querySelector('dialog[open]') || document.hidden) { setTimeout(tryShow, 2000); return; }
+        try { localStorage.setItem('dash-dl-asked', '1'); } catch { /* 이번만 */ }
+        $('dl-dialog').showModal();
+      };
+      setTimeout(tryShow, 1500);
+    }
     $('dl-copy').addEventListener('click', async () => {
       const b = $('dl-copy');
       try { await navigator.clipboard.writeText(DL_CMD); b.textContent = '복사됨'; } catch { b.textContent = '아래 줄을 직접 복사해 주세요'; }
