@@ -24,6 +24,97 @@ function Done([int]$code) {
   Read-Host '엔터를 누르면 이 창이 닫혀요'
   exit $code
 }
+# 큰 파일을 받으며 몇 % 받았는지 보여 준다 (공식 설치 스크립트는 아무 표시 없이 받아서 멈춘 것처럼 보임)
+function Get-WithProgress([string]$url, [string]$out) {
+  $req = [Net.HttpWebRequest]::Create($url)
+  $req.Timeout = 30000
+  $req.ReadWriteTimeout = 120000
+  $req.UserAgent = 'Mozilla/5.0 (Windows NT 10.0) WindowsPowerShell/5.1'
+  if ($req.Proxy) { $req.Proxy.Credentials = [Net.CredentialCache]::DefaultCredentials }
+  $res = $null; $in = $null; $fs = $null
+  $buf = New-Object byte[] 1048576
+  $done = 0L
+  $total = -1
+  $shown = -1
+  $sw = [Diagnostics.Stopwatch]::StartNew()
+  try {
+    $res = $req.GetResponse()
+    $total = $res.ContentLength
+    $in = $res.GetResponseStream()
+    $fs = [IO.File]::Create($out)
+    while (($n = $in.Read($buf, 0, $buf.Length)) -gt 0) {
+      $fs.Write($buf, 0, $n)
+      $done += $n
+      if ($total -gt 0) {
+        $pct = [int][Math]::Floor(100 * $done / $total)
+        if ($pct -ne $shown) {
+          $shown = $pct
+          $sec = $sw.Elapsed.TotalSeconds
+          $left = ''
+          if ($sec -gt 3 -and $done -gt 0) {
+            $rest = ($total - $done) / ($done / $sec)
+            $left = if ($rest -ge 60) { ", 남은 시간 약 $([int][Math]::Ceiling($rest / 60))분" } else { ', 거의 다 됐어요' }
+          }
+          Write-Host ("`r    {0,3}%  ({1} / {2}MB{3})        " -f $pct, [Math]::Floor($done / 1MB), [int]($total / 1MB), $left) -NoNewline
+        }
+      } else {
+        $mb = [Math]::Floor($done / 1MB)
+        if ($mb -ne $shown) { $shown = $mb; Write-Host ("`r    {0}MB 받음        " -f $mb) -NoNewline }
+      }
+    }
+    Write-Host ''
+  } finally {
+    if ($fs) { try { $fs.Dispose() } catch { } }
+    if ($in) { try { $in.Dispose() } catch { } }
+    if ($res) { try { $res.Close() } catch { } }
+  }
+  if ($total -gt 0 -and $done -ne $total) { throw '받는 도중 끊겼어요. 인터넷을 확인하고 다시 실행해 주세요.' }
+}
+
+# 큰 파일 받기: 윈도우에 들어 있는 curl.exe 가 옛 PowerShell 보다 훨씬 빠르고, 받은 양·속도·남은 시간도 보여 준다 (Time Left 칸).
+# 학교망 보안 장비 때문에 인증서 폐기 확인이 실패하면 공식 설치 스크립트처럼 --ssl-revoke-best-effort 로 한 번 더.
+# curl 이 없거나(아주 옛 윈도우) 계속 실패하면 PowerShell 로 받는다.
+function Get-Big([string]$url, [string]$out) {
+  $curl = Join-Path $env:SystemRoot 'System32\curl.exe'
+  if (Test-Path $curl) {
+    foreach ($relaxed in @($false, $true)) {
+      $a = @('-fL', '--retry', '2', '--connect-timeout', '30', '-o', $out, $url)
+      if ($relaxed) { $a = @('--ssl-revoke-best-effort') + $a }
+      & $curl @a
+      if ($LASTEXITCODE -eq 0 -and (Test-Path $out)) { return }
+    }
+    Say '    curl 로 받지 못해 다른 방법으로 다시 받아요...' 'Yellow'
+  }
+  Get-WithProgress $url $out
+}
+
+# Claude Code 설치: 공식 설치 스크립트(claude.ai/install.ps1)와 같은 순서 (최신 버전 → 목록의 체크섬 → 받기 → 확인 → claude install)
+function Install-Claude {
+  if (-not [Environment]::Is64BitOperatingSystem) { throw 'Claude Code 는 64비트 윈도우에서만 돼요.' }
+  $rel = 'https://downloads.claude.ai/claude-code-releases'
+  $version = "$(Invoke-RestMethod -UseBasicParsing "$rel/latest")".Trim()
+  if ($version -notmatch '^\d+\.\d+\.\d+') { throw 'Claude Code 버전을 알아내지 못했어요. (다운로드 서버에 닿지 않음)' }
+  $plat = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'win32-arm64' } else { 'win32-x64' }
+  $manifest = Invoke-RestMethod -UseBasicParsing "$rel/$version/manifest.json"
+  $sum = $manifest.platforms.$plat.checksum
+  if (-not $sum) { throw "이 PC 종류($plat)용 Claude Code 가 없어요." }
+  $dl = Join-Path $env:USERPROFILE '.claude\downloads'
+  New-Item -ItemType Directory -Force -Path $dl | Out-Null
+  $bin = Join-Path $dl "claude-$version-$plat.exe"
+  try {
+    Get-Big "$rel/$version/$plat/claude.exe" $bin
+    if ((Get-FileHash -Path $bin -Algorithm SHA256).Hash.ToLower() -ne $sum.ToLower()) { throw '받은 파일이 깨졌어요. 다시 실행해 주세요.' }
+    Say '    받았어요. 설치를 마무리하고 있어요 (1분쯤)...'
+    $ErrorActionPreference = 'Continue'   # claude install 이 알림을 오류 줄로 내도 멈추지 않게
+    $code = 1
+    try { & $bin install latest | Out-Host; $code = $LASTEXITCODE } finally { $ErrorActionPreference = 'Stop' }
+    if ($code -ne 0) { throw "Claude Code 설치 마무리에 실패했어요 (코드 $code)." }
+  } finally {
+    Start-Sleep -Seconds 1
+    Remove-Item -Force -ErrorAction SilentlyContinue $bin
+  }
+}
+
 function Stop-Helper {
   Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
     Where-Object { $_.CommandLine -and $_.CommandLine -like '*SchoolDashboardAI\helper.ps1*' } |
@@ -50,11 +141,8 @@ try {
   if (Test-Path $Claude) {
     Say '1/3 Claude Code 가 이미 있어요.' 'Green'
   } else {
-    Say '1/3 Claude Code 를 설치하고 있어요 (1~3분 걸려요)...'
-    $installer = Invoke-RestMethod -UseBasicParsing 'https://claude.ai/install.ps1'
-    # 공식 설치 스크립트가 무시해도 되는 오류를 내도 여기서 멈추지 않게
-    $ErrorActionPreference = 'Continue'
-    try { & ([scriptblock]::Create($installer)) } finally { $ErrorActionPreference = 'Stop' }
+    Say '1/3 Claude Code 를 받고 있어요 (약 340MB, 학교 인터넷에 따라 3~15분)...'
+    Install-Claude
     if (-not (Test-Path $Claude)) { throw 'Claude Code 설치가 끝나지 않았어요.' }
     Say '    설치했어요.' 'Green'
   }

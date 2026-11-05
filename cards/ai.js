@@ -298,7 +298,7 @@
     const li2 = el('li');
     li2.append('키보드에서 ', el('kbd', '', 'Windows'), ' + ', el('kbd', '', 'R'), ' 을 누르고, ', el('kbd', '', 'Ctrl'), ' + ', el('kbd', '', 'V'), ' 로 붙여넣은 뒤 ', el('kbd', '', 'Enter'));
     ol.append(li2);
-    ol.append(el('li', '', '파란 창에서 설치가 끝나면(1~3분) 창을 닫고 여기로 돌아오세요.'));
+    ol.append(el('li', '', '파란 창에서 설치가 끝나면 창을 닫고 여기로 돌아오세요. 처음엔 프로그램(약 340MB)을 받느라 3~15분 걸릴 수 있어요.'));
     box.append(ol);
     const line = el('code', 'ai-line', INSTALL_LINE);
     line.hidden = true;
