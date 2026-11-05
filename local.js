@@ -3983,6 +3983,7 @@ data: ${snap}
       var portalUrl = (office) => OFFICES[office] ? `https://${OFFICES[office][1]}.eduptl.kr/bpm_lgn_lg00_001.do?noEpSession` : "";
       var neisUrl = (office) => OFFICES[office] ? `https://${OFFICES[office][1]}.neis.go.kr/` : "";
       var MAX_LINKS = 24;
+      var MAX_FOLDERS = 12;
       var MAX_DDAYS = 8;
       var DDAY_REF = /^(google:[^\s]{1,300}:[A-Za-z0-9_@.-]{1,1024}|todo:\d{1,12})$/;
       var validDate = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(`${s}T00:00:00Z`));
@@ -4000,6 +4001,16 @@ data: ${snap}
         if (u.protocol !== "https:" && u.protocol !== "http:") throw new UserError2(`${label}\uB294 http \uB098 https \uB85C \uC2DC\uC791\uD574\uC57C \uD574\uC694.`);
         if (u.href.length > 500) throw new UserError2(`${label}\uAC00 \uB108\uBB34 \uAE38\uC5B4\uC694.`);
         return u.href;
+      }
+      function cleanFolder(v) {
+        if (typeof v !== "string") throw new UserError2("\uD3F4\uB354 \uACBD\uB85C\uAC00 \uB9DE\uC9C0 \uC54A\uC544\uC694.");
+        let s = v.trim().replace(/^"(.*)"$/, "$1").trim().replace(/\//g, "\\").replace(/\\{2,}/g, "\\");
+        if (s.length > 3) s = s.replace(/\\+$/, "");
+        if (/^[A-Za-z]:$/.test(s)) s += "\\";
+        if (!/^[A-Za-z]:\\/.test(s) || /[\u0000-\u001f\u007f<>"|?*]/.test(s) || s.slice(2).includes(":") || s.length > 240) {
+          throw new UserError2("\uD3F4\uB354 \uACBD\uB85C\uB294 C:\\ \uB098 D:\\ \uCC98\uB7FC \uB4DC\uB77C\uC774\uBE0C \uAE00\uC790\uB85C \uC2DC\uC791\uD574\uC57C \uD574\uC694. \uD0D0\uC0C9\uAE30 \uC8FC\uC18C\uCC3D\uC758 \uACBD\uB85C\uB97C \uBCF5\uC0AC\uD574 \uBD99\uC5EC\uB123\uC5B4 \uC8FC\uC138\uC694.");
+        }
+        return s;
       }
       function cleanTitle(v) {
         if (typeof v !== "string") throw new UserError2("\uC774\uB984\uC774 \uB9DE\uC9C0 \uC54A\uC544\uC694.");
@@ -4108,6 +4119,8 @@ data: ${snap}
             portal: read("portal", { url: portalUrl(office), auto: false }),
             links: read("links", deps.personal ? PERSONAL_LINKS : defaultLinks(school)),
             search: read("search", "naver"),
+            folders: read("folders", []),
+            // [{ title, path }] 자주 가는 PC 폴더 (배포판, 윈도우)
             ddays: read("ddays", [])
             // [{ ref: 'google:달력:일정' | 'todo:번호', title, date }]
           };
@@ -4218,6 +4231,11 @@ data: ${snap}
             if (!Array.isArray(links) || links.length > MAX_LINKS) throw new UserError2(`\uBC14\uB85C\uAC00\uAE30\uB294 ${MAX_LINKS}\uAC1C\uAE4C\uC9C0\uC608\uC694.`);
             const clean = links.map((l) => ({ title: cleanTitle(l?.title), url: cleanUrl(l?.url) }));
             return change(() => write("links", clean));
+          },
+          setFolders(folders) {
+            if (!Array.isArray(folders) || folders.length > MAX_FOLDERS) throw new UserError2(`\uD3F4\uB354\uB294 ${MAX_FOLDERS}\uAC1C\uAE4C\uC9C0\uC608\uC694.`);
+            const clean = folders.map((f) => ({ title: cleanTitle(f?.title), path: cleanFolder(f?.path) }));
+            return change(() => write("folders", clean));
           },
           // D-day 켜고 끄기 (달력의 일정·할 일에서). 같은 ref 가 있으면 끔
           toggleDday({ ref, title, date } = {}) {
@@ -4417,6 +4435,7 @@ data: ${snap}
         on("PUT", "/api/settings/office", (req) => settings.setOffice(req.body?.office));
         on("PUT", "/api/settings/portal", (req) => settings.setPortal({ url: req.body?.url ?? "", auto: false }));
         on("PUT", "/api/settings/links", (req) => settings.setLinks(req.body?.links));
+        on("PUT", "/api/settings/folders", (req) => settings.setFolders(req.body?.folders));
         on("PUT", "/api/settings/search", (req) => settings.setSearch(req.body?.search));
         on("PUT", "/api/settings/dday", (req) => settings.toggleDday(req.body || {}));
         on("GET", "/api/settings", () => settings.current());

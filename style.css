@@ -928,3 +928,7 @@ dialog:not([open])::backdrop { background: rgb(0 0 0 / 0); }
   .d-todo-row.just-done .d-todo-done, .d-todo-row.just-done .d-todo-title { animation: none; }
   button:not(:disabled):active { transform: none; }
 }
+#sp-open{display:inline-flex;align-items:center;justify-content:center}
+#sp-open .sp-logo{display:block}
+.fd-box { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
+.fd-box h3 { margin: 0 0 4px; font-size: 15px; }

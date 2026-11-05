@@ -9,6 +9,8 @@
     if (text !== undefined) e.textContent = text;
     return e;
   };
+  const win = /Windows/i.test(navigator.userAgent);
+  const folderUrl = (path) => `sdash-dl:folder?p=${encodeURIComponent(path)}`;
   const S = () => state.data.settings || { portal: { url: '' }, neis: '', links: [], search: 'naver' };
 
   function render() {
@@ -28,7 +30,17 @@
       a.title = l.url;
       box.append(a);
     }
-    if (!all.length) box.append(el('span', 'muted small', '✎ 를 눌러 자주 가는 사이트를 넣어 주세요'));
+    if (!all.length && !(teacher && win && s.folders?.length)) box.append(el('span', 'muted small', '✎ 를 눌러 자주 가는 사이트를 넣어 주세요'));
+    // 자주 가는 PC 폴더 (배포판, 윈도우): 이 PC 설정의 sdash-dl: 통로로 탐색기를 연다
+    if (teacher && win) {
+      for (const f of s.folders || []) {
+        const a = el('a', 'link-btn folder-btn', `📁 ${f.title}`);
+        a.href = folderUrl(f.path);
+        a.title = f.path;
+        a.addEventListener('click', () => window.Dash.openPcFolder?.());
+        box.append(a);
+      }
+    }
     if (teacher && $('go-engine')) $('go-engine').value = s.search || 'naver';
   }
 
@@ -91,6 +103,66 @@
     $('go-add-title').focus();
   });
   $('go-close').addEventListener('click', () => $('go-dialog').close());
+
+  // ---- 자주 가는 PC 폴더 고치기 (같은 ✎ 창 아래쪽, 배포판 윈도우만) ----
+  const fdBox = $('fd-box');
+  if (fdBox && win) {
+    fdBox.hidden = false;
+    let fd = [];
+    const saveFolders = async (next) => {
+      try {
+        fd = (await api('PUT', '/api/settings/folders', { folders: next }))?.folders || next; // 정리된 경로로
+        $('fd-msg').textContent = '';
+        renderFolders();
+        return true;
+      } catch (err) {
+        $('fd-msg').textContent = err.message;
+        return false;
+      }
+    };
+    function renderFolders() {
+      const box = $('fd-rows');
+      box.textContent = '';
+      fd.forEach((f, i) => {
+        const li = el('li', 'go-row');
+        li.append(el('strong', '', f.title), el('span', 'muted small go-row-url', f.path));
+        const up = el('button', 'ghost small-btn', '↑');
+        up.type = 'button';
+        up.disabled = i === 0;
+        up.setAttribute('aria-label', `${f.title} 앞으로`);
+        up.addEventListener('click', () => { const n = [...fd]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; saveFolders(n); });
+        const del = el('button', 'ghost small-btn', '지우기');
+        del.type = 'button';
+        del.addEventListener('click', () => {
+          if (del.dataset.armed !== '1') { del.dataset.armed = '1'; del.textContent = '한 번 더'; del.classList.add('armed'); setTimeout(() => { del.dataset.armed = ''; del.textContent = '지우기'; del.classList.remove('armed'); }, 3000); return; }
+          saveFolders(fd.filter((_, j) => j !== i));
+        });
+        li.append(up, del);
+        box.append(li);
+      });
+      if (!fd.length) box.append(el('li', 'muted small', '아직 없어요. 아래에서 추가해 주세요.'));
+    }
+    $('go-edit').addEventListener('click', () => { fd = [...(S().folders || [])]; $('fd-msg').textContent = ''; renderFolders(); });
+    $('fd-add').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = $('fd-add-title').value.trim();
+      const path = $('fd-add-path').value.trim();
+      if (!title || !path) { $('fd-msg').textContent = '이름과 경로를 모두 적어 주세요.'; return; }
+      if (await saveFolders([...fd, { title, path }])) {
+        $('fd-add-title').value = '';
+        $('fd-add-path').value = '';
+        $('fd-add-title').focus();
+        // 폴더 버튼은 새 이 PC 설정이 있어야 열린다: 예전에 설정한 PC 도 처음 한 번은 다시 권함
+        let asked = false;
+        try { asked = localStorage.getItem('dash-dl-fd') === '1'; localStorage.setItem('dash-dl-fd', '1'); } catch { asked = true; }
+        if (!asked && $('dl-dialog')) {
+          $('dl-intro').textContent = '폴더 버튼이 탐색기에서 그 폴더를 열려면 이 PC 설정이 필요해요. 예전에 해 두었더라도 한 번 더 해 주세요. (이미 방금 했다면 [닫기])';
+          $('go-dialog').close();
+          $('dl-dialog').showModal();
+        }
+      }
+    });
+  }
   $('go-add').addEventListener('submit', async (e) => {
     e.preventDefault();
     const title = $('go-add-title').value.trim();
@@ -108,7 +180,7 @@
   // 등록된 명령은 주소 내용(%1)을 받지 않는다 → 무엇이 와도 다운로드 폴더만 연다.
   // 이 PC 설정(web/ai/pc.ps1): 다운로드 폴더 버튼 + 대시보드에서 받은 파일 바로 열기. Win+R 한 줄 (259자 제한 안)
   const DL_CMD = "powershell -NoProfile -ExecutionPolicy Bypass -c \"[Net.ServicePointManager]::SecurityProtocol=3072;$f=$env:TEMP+'\\sdash-pc.ps1';try{iwr -useb https://juvilan.github.io/school-dashboard/ai/pc.ps1 -OutFile $f;& $f}catch{$_;pause}\"";
-  if (/Windows/i.test(navigator.userAgent)) {
+  if (win) {
     const dl = $('go-dl');
     dl.hidden = false;
     // 웹판: 드라이브 칸이 있으면 [파일 고르기] 옆으로 (받은 파일을 바로 찾게)
@@ -142,6 +214,7 @@
       }, 4000);
     };
     dl.addEventListener('click', () => openDl());
+    window.Dash.openPcFolder = () => openDl();
     window.Dash.openDownloads = () => { openDl(); location.href = 'sdash-dl:open'; };
     // 받은 파일을 기본 앱으로 (open.ps1 이 다운로드 폴더에서 이 이름으로 막 받은 파일만 찾아 연다)
     // t = 받은 시각: 그보다 먼저 있던 같은 이름 파일(예전 판)은 열지 않는다

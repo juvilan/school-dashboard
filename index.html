@@ -6,12 +6,12 @@
   <meta name="referrer" content="no-referrer-when-downgrade">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>학교 대시보드</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=0.1.0-81b91ff09e">
-  <link rel="icon" href="./icon.svg?v=0.1.0-81b91ff09e" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest?v=0.1.0-b3a5cbc8d1">
+  <link rel="icon" href="./icon.svg?v=0.1.0-b3a5cbc8d1" type="image/svg+xml">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#181b21">
   
-  <link rel="stylesheet" href="./style.css?v=0.1.0-81b91ff09e">
+  <link rel="stylesheet" href="./style.css?v=0.1.0-b3a5cbc8d1">
 </head>
 <body data-edition="teacher" data-host="web">
   <header class="top">
@@ -336,7 +336,7 @@
       </section>
       <section id="t-pc" hidden>
         <h3>이 PC 설정 <span class="small muted">(윈도우, 한 번만)</span></h3>
-        <p class="small muted">[📁 다운로드] 버튼으로 다운로드 폴더를 열고, 드라이브에서 고른 한글·엑셀·파워포인트 파일을 받자마자 이 PC 의 프로그램으로 열게 등록해요. 처음 안내 창을 닫았거나 다른 PC 로 옮겼을 때 여기서 다시 하면 돼요.</p>
+        <p class="small muted">[📁 다운로드]·자주 가는 폴더 버튼으로 탐색기를 열고, 드라이브에서 고른 한글·엑셀·파워포인트 파일을 받자마자 이 PC 의 프로그램으로 열게 등록해요. 처음 안내 창을 닫았거나 다른 PC 로 옮겼을 때 여기서 다시 하면 돼요.</p>
         <button id="t-pc-open" type="button">이 PC 설정 열기</button>
       </section>
       <section>
@@ -377,30 +377,41 @@
         <button type="submit">추가</button>
       </form>
       <p id="go-d-msg" class="msg" role="alert"></p>
+      <section id="fd-box" class="fd-box" hidden>
+        <h3>자주 가는 PC 폴더</h3>
+        <p class="muted small">탐색기에서 그 폴더를 열고, 위쪽 주소창을 눌러 나오는 경로를 복사해 붙여넣어 주세요. (예: D:\업무\2026 교육과정)<br>버튼을 눌렀는데 다운로드 폴더가 열리면 [설정]의 "이 PC 설정"을 한 번 더 해 주세요.</p>
+        <ul id="fd-rows" class="go-rows"></ul>
+        <form id="fd-add" class="go-add">
+          <input id="fd-add-title" maxlength="20" placeholder="이름 (예: 교육과정)" aria-label="폴더 이름" autocomplete="off">
+          <input id="fd-add-path" maxlength="240" placeholder="경로 (예: D:\업무\교육과정)" aria-label="폴더 경로" autocomplete="off" spellcheck="false">
+          <button type="submit">추가</button>
+        </form>
+        <p id="fd-msg" class="msg" role="alert"></p>
+      </section>
     </div>
   </dialog>
   
 
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script src="./local.js?v=0.1.0-81b91ff09e"></script>
-  <script src="./cards/calendar-logic.js?v=0.1.0-81b91ff09e"></script>
-  <script src="./app.js?v=0.1.0-81b91ff09e"></script>
+  <script src="./local.js?v=0.1.0-b3a5cbc8d1"></script>
+  <script src="./cards/calendar-logic.js?v=0.1.0-b3a5cbc8d1"></script>
+  <script src="./app.js?v=0.1.0-b3a5cbc8d1"></script>
   
-  <script src="./cards/ui.js?v=0.1.0-81b91ff09e"></script>
-  <script src="./cards/today.js?v=0.1.0-81b91ff09e"></script>
-  <script src="./cards/calendar.js?v=0.1.0-81b91ff09e"></script>
-  <script src="./cards/timetable-logic.js?v=0.1.0-81b91ff09e"></script>
-  <script src="./cards/timetable.js?v=0.1.0-81b91ff09e"></script>
-  <script src="./cards/ttnote.js?v=0.1.0-81b91ff09e"></script>
-  <script src="./cards/gcal.js?v=0.1.0-81b91ff09e"></script>
-  <script src="./cards/clip.js?v=0.1.0-81b91ff09e"></script>
+  <script src="./cards/ui.js?v=0.1.0-b3a5cbc8d1"></script>
+  <script src="./cards/today.js?v=0.1.0-b3a5cbc8d1"></script>
+  <script src="./cards/calendar.js?v=0.1.0-b3a5cbc8d1"></script>
+  <script src="./cards/timetable-logic.js?v=0.1.0-b3a5cbc8d1"></script>
+  <script src="./cards/timetable.js?v=0.1.0-b3a5cbc8d1"></script>
+  <script src="./cards/ttnote.js?v=0.1.0-b3a5cbc8d1"></script>
+  <script src="./cards/gcal.js?v=0.1.0-b3a5cbc8d1"></script>
+  <script src="./cards/clip.js?v=0.1.0-b3a5cbc8d1"></script>
   
-  <script src="./cards/sticky.js?v=0.1.0-81b91ff09e"></script>
+  <script src="./cards/sticky.js?v=0.1.0-b3a5cbc8d1"></script>
   
-  <script src="./cards/ai.js?v=0.1.0-81b91ff09e"></script>
-  <script src="./cards/drive.js?v=0.1.0-81b91ff09e"></script>
-  <script src="./cards/golinks.js?v=0.1.0-81b91ff09e"></script>
-  <script src="./cards/fold.js?v=0.1.0-81b91ff09e"></script>
-  <script src="./cards/teacher.js?v=0.1.0-81b91ff09e"></script>
+  <script src="./cards/ai.js?v=0.1.0-b3a5cbc8d1"></script>
+  <script src="./cards/drive.js?v=0.1.0-b3a5cbc8d1"></script>
+  <script src="./cards/golinks.js?v=0.1.0-b3a5cbc8d1"></script>
+  <script src="./cards/fold.js?v=0.1.0-b3a5cbc8d1"></script>
+  <script src="./cards/teacher.js?v=0.1.0-b3a5cbc8d1"></script>
 </body>
 </html>
