@@ -6,18 +6,19 @@
   <meta name="referrer" content="no-referrer-when-downgrade">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>학교 대시보드</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=0.1.0-3a912463fc">
-  <link rel="icon" href="./icon.svg?v=0.1.0-3a912463fc" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest?v=0.1.0-38beb8a4f6">
+  <link rel="icon" href="./icon.svg?v=0.1.0-38beb8a4f6" type="image/svg+xml">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#181b21">
   
-  <link rel="stylesheet" href="./style.css?v=0.1.0-3a912463fc">
+  <link rel="stylesheet" href="./style.css?v=0.1.0-38beb8a4f6">
 </head>
 <body data-edition="teacher" data-host="web">
   <header class="top">
     <h1 class="sr-only">대시보드</h1>
     <nav class="links" aria-label="바로가기">
       <span id="go-links" class="go-links"></span>
+      <a id="go-dl" class="link-btn go-dl" href="sdash-dl:open" title="다운로드 폴더 열기 (파일 탐색기)" hidden>📁 다운로드</a>
       <button id="go-edit" class="ghost small-btn go-edit" type="button" title="바로가기 고치기" aria-label="바로가기 고치기">✎</button>
       <form id="go-search" class="go-search" role="search">
         <input id="go-q" type="search" autocomplete="off" placeholder="검색" aria-label="검색어">
@@ -339,6 +340,19 @@
     </div>
   </dialog>
   
+  <dialog id="dl-dialog">
+    <div class="tt-form t-form">
+      <div class="dialog-head"><h2>다운로드 폴더 버튼 쓰기</h2><button id="dl-close" class="ghost" type="button">닫기</button></div>
+      <p>탐색기가 안 열렸나요? 이 PC 에 <strong>처음 한 번만</strong> 등록해 주세요. 관리자 권한은 필요 없어요.</p>
+      <ol class="ai-steps">
+        <li><button id="dl-copy" class="small-btn" type="button">아래 줄 복사</button></li>
+        <li><kbd>윈도우 키</kbd> + <kbd>R</kbd> 을 누르고, 뜨는 칸에 붙여넣기(<kbd>Ctrl</kbd>+<kbd>V</kbd>) → <kbd>Enter</kbd>. 파란 창이 잠깐 떴다 사라지면 끝.</li>
+        <li>여기서 [📁 다운로드]를 다시 누르고, 크롬이 묻는 창에서 <strong>"항상 허용"</strong>을 체크한 뒤 [열기].</li>
+      </ol>
+      <div class="launch-cmd"><code id="dl-cmd"></code></div>
+      <p class="small muted">이 등록은 "sdash-dl: 주소가 오면 탐색기로 다운로드 폴더를 연다" 한 가지만 해요 (다른 일은 하지 않음). 크롬이 받는 곳과 같은 폴더예요. 지우려면 같은 방법으로: <code>powershell -NoProfile -c "Remove-Item HKCU:\Software\Classes\sdash-dl -Recurse"</code></p>
+    </div>
+  </dialog>
   <dialog id="go-dialog">
     <div class="tt-form t-form">
       <div class="dialog-head"><h2>바로가기 고치기</h2><button id="go-close" class="ghost" type="button">닫기</button></div>
@@ -354,24 +368,24 @@
   
 
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script src="./local.js?v=0.1.0-3a912463fc"></script>
-  <script src="./cards/calendar-logic.js?v=0.1.0-3a912463fc"></script>
-  <script src="./app.js?v=0.1.0-3a912463fc"></script>
+  <script src="./local.js?v=0.1.0-38beb8a4f6"></script>
+  <script src="./cards/calendar-logic.js?v=0.1.0-38beb8a4f6"></script>
+  <script src="./app.js?v=0.1.0-38beb8a4f6"></script>
   
-  <script src="./cards/today.js?v=0.1.0-3a912463fc"></script>
-  <script src="./cards/calendar.js?v=0.1.0-3a912463fc"></script>
-  <script src="./cards/timetable-logic.js?v=0.1.0-3a912463fc"></script>
-  <script src="./cards/timetable.js?v=0.1.0-3a912463fc"></script>
-  <script src="./cards/ttnote.js?v=0.1.0-3a912463fc"></script>
-  <script src="./cards/gcal.js?v=0.1.0-3a912463fc"></script>
-  <script src="./cards/clip.js?v=0.1.0-3a912463fc"></script>
+  <script src="./cards/today.js?v=0.1.0-38beb8a4f6"></script>
+  <script src="./cards/calendar.js?v=0.1.0-38beb8a4f6"></script>
+  <script src="./cards/timetable-logic.js?v=0.1.0-38beb8a4f6"></script>
+  <script src="./cards/timetable.js?v=0.1.0-38beb8a4f6"></script>
+  <script src="./cards/ttnote.js?v=0.1.0-38beb8a4f6"></script>
+  <script src="./cards/gcal.js?v=0.1.0-38beb8a4f6"></script>
+  <script src="./cards/clip.js?v=0.1.0-38beb8a4f6"></script>
   
-  <script src="./cards/sticky.js?v=0.1.0-3a912463fc"></script>
+  <script src="./cards/sticky.js?v=0.1.0-38beb8a4f6"></script>
   
-  <script src="./cards/ai.js?v=0.1.0-3a912463fc"></script>
-  <script src="./cards/drive.js?v=0.1.0-3a912463fc"></script>
-  <script src="./cards/golinks.js?v=0.1.0-3a912463fc"></script>
-  <script src="./cards/fold.js?v=0.1.0-3a912463fc"></script>
-  <script src="./cards/teacher.js?v=0.1.0-3a912463fc"></script>
+  <script src="./cards/ai.js?v=0.1.0-38beb8a4f6"></script>
+  <script src="./cards/drive.js?v=0.1.0-38beb8a4f6"></script>
+  <script src="./cards/golinks.js?v=0.1.0-38beb8a4f6"></script>
+  <script src="./cards/fold.js?v=0.1.0-38beb8a4f6"></script>
+  <script src="./cards/teacher.js?v=0.1.0-38beb8a4f6"></script>
 </body>
 </html>

@@ -103,6 +103,39 @@
     }
   });
 
+  // ---- [📁 다운로드]: 윈도우 탐색기로 다운로드 폴더 (크롬이 받는 곳과 같은 폴더) ----
+  // 웹페이지는 PC 폴더를 직접 열 수 없어서, 처음 한 번 "sdash-dl:" 주소를 윈도우에 등록한다 (내 계정 HKCU 에만).
+  // 등록된 명령은 주소 내용(%1)을 받지 않는다 → 무엇이 와도 다운로드 폴더만 연다.
+  const DL_CMD = "powershell -NoProfile -c \"$k='HKCU:\\Software\\Classes\\sdash-dl';$c=$k+'\\shell\\open\\command';ni $c -Force|Out-Null;sp $k '(default)' 'URL:sdash-dl';sp $k 'URL Protocol' '';sp $c '(default)' 'explorer.exe shell:Downloads'\"";
+  if (/Windows/i.test(navigator.userAgent)) {
+    const dl = $('go-dl');
+    dl.hidden = false;
+    $('dl-cmd').textContent = DL_CMD;
+    // 등록 전에는 크롬이 아무 표시 없이 무시한다 → 창이 그대로면 등록 안내
+    // 한 번이라도 탐색기가 열렸으면(창이 뒤로 감) 그다음부터는 안내를 띄우지 않는다
+    let ok = false;
+    try { ok = localStorage.getItem('dash-dl-ok') === '1'; } catch { /* 모름 */ }
+    let waiting = false;
+    window.addEventListener('blur', () => {
+      if (!waiting) return;
+      waiting = false;
+      if (!ok) { ok = true; try { localStorage.setItem('dash-dl-ok', '1'); } catch { /* 이번만 */ } }
+    });
+    const openDl = () => {
+      waiting = true;
+      if (ok) return;
+      setTimeout(() => { if (waiting && document.hasFocus() && !$('dl-dialog').open) $('dl-dialog').showModal(); waiting = false; }, 4000);
+    };
+    dl.addEventListener('click', openDl);
+    window.Dash.openDownloads = () => { openDl(); location.href = 'sdash-dl:open'; };
+    $('dl-close').addEventListener('click', () => $('dl-dialog').close());
+    $('dl-copy').addEventListener('click', async () => {
+      const b = $('dl-copy');
+      try { await navigator.clipboard.writeText(DL_CMD); b.textContent = '복사됨'; } catch { b.textContent = '아래 줄을 직접 복사해 주세요'; }
+      setTimeout(() => { b.textContent = '아래 줄 복사'; }, 2000);
+    });
+  }
+
   listen('settings', render);
   if (state.data.settings) render(); // 처음 자료가 오기 전에는 빈 안내를 띄우지 않음
 })();

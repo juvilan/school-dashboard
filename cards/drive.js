@@ -49,7 +49,17 @@
         dl.addEventListener('click', async () => {
           dl.disabled = true;
           msg('');
-          try { await D.download(f); } catch (err) { msg(err.message); } finally { dl.disabled = false; }
+          try {
+            await D.download(f);
+            if (window.Dash?.openDownloads) {
+              const box = $('drive-msg');
+              box.textContent = '다운로드 폴더에 받았어요. ';
+              const go = el('button', 'linklike', '📁 다운로드 폴더 열기');
+              go.type = 'button';
+              go.addEventListener('click', () => window.Dash.openDownloads());
+              box.append(go);
+            } else msg('다운로드 폴더에 받았어요.');
+          } catch (err) { msg(err.message); } finally { dl.disabled = false; }
         });
         li.append(dl);
       }
