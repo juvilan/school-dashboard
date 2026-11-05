@@ -144,6 +144,16 @@
     dl.addEventListener('click', openDl);
     window.Dash.openDownloads = () => { openDl(); location.href = 'sdash-dl:open'; };
     $('dl-close').addEventListener('click', () => $('dl-dialog').close());
+    // 설정 창에서도 다시 열 수 있게 (처음 안내를 닫아 버린 경우)
+    const pc = $('t-pc');
+    if (pc) {
+      pc.hidden = false;
+      $('t-pc-open').addEventListener('click', () => {
+        $('dl-intro').textContent = '이 PC 에 한 번만 설정해 두면 [📁 다운로드] 버튼이 탐색기로 다운로드 폴더를 열어요.';
+        $('t-settings')?.close();
+        $('dl-dialog').showModal();
+      });
+    }
     // 처음 한 번(새로 설치했거나 이미 쓰던 선생님이 새로고침했을 때): 등록을 먼저 권한다.
     // 웹페이지·앱 설치는 PC 설정을 직접 바꿀 수 없어서, 붙여넣기 한 번은 선생님이 해야 한다.
     const standalone = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: window-controls-overlay)').matches;
