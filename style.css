@@ -860,3 +860,71 @@ button.drive-name:hover { color: var(--accent); text-decoration: underline; }
 .drive-card .card-head .small-btn { margin-top: 0; flex: none; white-space: nowrap; height: 30px; padding: 0 10px; font-size: 13px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; }
 .drive-card .go-dl { border: 1px solid var(--line); color: var(--text); text-decoration: none; background: transparent; }
 .drive-card .go-dl:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ---- 다듬기: 누르는 느낌·은은한 강조·창 여닫기·서랍·말풍선·할 일 체크 ---- */
+button, a.link-btn, a.small-btn {
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, transform .08s ease, filter .15s ease;
+}
+button:not(:disabled):hover { filter: brightness(1.08); }
+button.ghost:not(:disabled):hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+button:not(:disabled):active, a.link-btn:active, a.small-btn:active { transform: scale(.96); }
+.card { transition: border-color .2s ease, box-shadow .2s ease; }
+.card:hover { border-color: color-mix(in srgb, var(--accent) 22%, var(--line)); box-shadow: 0 1px 8px rgb(0 0 0 / .06); }
+
+/* 창(dialog): 살짝 떠오르며 열리고, 사라지며 닫힘 */
+dialog {
+  transition: opacity .16s ease, transform .16s ease, overlay .16s ease allow-discrete, display .16s ease allow-discrete;
+  opacity: 0; transform: translateY(6px) scale(.985);
+}
+dialog[open] { opacity: 1; transform: none; }
+@starting-style { dialog[open] { opacity: 0; transform: translateY(6px) scale(.985); } }
+dialog::backdrop { transition: background-color .16s ease, overlay .16s ease allow-discrete, display .16s ease allow-discrete; }
+dialog:not([open])::backdrop { background: rgb(0 0 0 / 0); }
+@starting-style { dialog[open]::backdrop { background: rgb(0 0 0 / 0); } }
+
+/* 서랍: 오른쪽에서 밀려 나옴. 화면 배치는 그대로 두고 위에 겹침 */
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 50;
+  width: min(380px, calc(100vw - 24px)); overflow-y: auto; overscroll-behavior: contain;
+  background: var(--card); color: var(--text); border-left: 1px solid var(--line);
+  box-shadow: -8px 0 24px rgb(0 0 0 / .18);
+  padding: 14px 16px; transform: translateX(105%); visibility: hidden;
+  transition: transform .22s cubic-bezier(.2, .8, .2, 1), visibility 0s linear .22s;
+}
+.drawer.open { transform: none; visibility: visible; transition: transform .22s cubic-bezier(.2, .8, .2, 1), visibility 0s; }
+.drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.drawer-head h2 { margin: 0; font-size: 16px; }
+.drawer-x { padding: 0 10px; font-size: 18px; line-height: 1.6; }
+.drawer .meal-detail { max-width: none; margin: 0; padding: 0; font-size: 15px; line-height: 1.7; }
+.drawer .meal-detail > div { margin: 0 0 10px; }
+.drawer .meal-detail .dish { display: block; margin: 0 0 0 4px; }
+.drawer > .card { border: 0; padding: 0; background: transparent; box-shadow: none; }
+.drawer > .card .card-head { gap: 8px; }
+.drawer > .card .card-head h2 { margin-right: auto; }
+.strip-meal[aria-expanded="true"] { border-color: var(--accent); }
+
+/* 말풍선 */
+.tip {
+  position: fixed; inset: auto; margin: 0; z-index: 100; pointer-events: none;
+  max-width: 260px; padding: 4px 8px; border-radius: 6px; border: 0;
+  background: color-mix(in srgb, var(--text) 88%, transparent); color: var(--card);
+  font-size: 12px; line-height: 1.4; white-space: pre-line; overflow: visible;
+  opacity: 0; transform: translateY(-2px); transition: opacity .12s ease, transform .12s ease;
+}
+.tip.show { opacity: 1; transform: none; }
+
+/* 할 일 끝냄: 체크가 톡 튀고, 줄이 왼쪽에서 그어짐 */
+.d-todo-row.just-done .d-todo-done { animation: todo-pop .32s ease; }
+.d-todo-row.just-done .d-todo-title {
+  text-decoration-color: transparent; /* 줄은 아래 그림으로 그어 보이고, 취소선 표시는 그대로 */
+  background: linear-gradient(currentColor, currentColor) no-repeat 0 55% / 100% 1px;
+  animation: todo-strike .35s ease .05s backwards;
+}
+@keyframes todo-pop { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
+@keyframes todo-strike { from { background-size: 0 1px; } to { background-size: 100% 1px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  button, a.link-btn, a.small-btn, .card, dialog, dialog::backdrop, .drawer, .drawer.open, .tip { transition: none; }
+  .d-todo-row.just-done .d-todo-done, .d-todo-row.just-done .d-todo-title { animation: none; }
+  button:not(:disabled):active { transform: none; }
+}

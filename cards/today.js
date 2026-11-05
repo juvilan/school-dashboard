@@ -71,7 +71,7 @@
       text($('strip-meal'), [span('🍚 학교를 고르면 급식이 보여요', 'muted')]);
       $('strip-daytype').textContent = '';
       text($('strip-exam'), '');
-      $('meal-detail').hidden = true;
+      text($('meal-detail'), [span('오른쪽 위 [설정]에서 학교를 찾으면 오늘 급식(조식·중식·석식)이 여기 보여요.', 'muted')]);
       return;
     }
     if (stale) {
@@ -80,7 +80,7 @@
       $('strip-daytype').textContent = '';
       text($('strip-exam'), '');
       text($('strip-meal'), [span('🍚 불러오는 중', 'muted')]);
-      $('meal-detail').hidden = true;
+      text($('meal-detail'), [span('불러오는 중…', 'muted')]);
       return;
     }
 
@@ -163,11 +163,6 @@
     msg.textContent = `못 불러온 정보: ${($('strip-warn').dataset.detail || '').replaceAll('\n', ' / ')}`;
   });
 
-  $('strip-meal').addEventListener('click', () => {
-    const open = $('meal-detail').hidden;
-    $('meal-detail').hidden = !open;
-    $('strip-meal').setAttribute('aria-expanded', String(open));
-  });
 
   // 10분마다, 그리고 날짜가 바뀌었으면 바로
   setInterval(() => {

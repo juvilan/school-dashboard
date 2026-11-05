@@ -223,9 +223,11 @@
   // 할 일 한 줄: ☐ 누르면 완료, 제목을 누르면 고치기(제목·마감일), × 두 번 누르면 지움
   // 고치는 중에 다른 곳의 변경으로 목록이 다시 그려져도 적던 내용이 남도록 editing 에 둔다
   let editing = null; // { id, rev, title, due, saving }
+  let justDone = null; // 방금 끝낸 할 일: 다시 그릴 때 한 번만 체크·줄긋기 움직임
   function todoRow(it, date) {
     if (editing && editing.id === it.todoId) return todoEditRow(it, date);
     const row = el('div', `d-item chip todo d-todo-row${it.done ? ' done' : ''}`);
+    if (it.done && justDone === it.todoId) { row.classList.add('just-done'); justDone = null; }
     // ☐ 누르면 끝냄(취소선으로 남음), ☑ 누르면 다시 안 끝낸 일로
     const done = el('button', 'd-todo-done', it.done ? '☑' : '☐');
     done.type = 'button';
@@ -235,10 +237,11 @@
     done.addEventListener('click', async () => {
       done.disabled = true;
       try {
+        if (!it.done) justDone = it.todoId;
         const r = await api('PATCH', `/api/todos/${it.todoId}`, { done: !it.done });
         // 다른 기기가 먼저 같은 상태로 바꿔 둔 경우: 바뀐 알림이 오지 않으니 직접 다시 그림
         if (r?.unchanged) { done.disabled = false; if ($('day-dialog').open && cur?.date) renderDayList(cur.date); }
-      } catch (err) { $('d-msg').textContent = err.message; done.disabled = false; }
+      } catch (err) { justDone = null; $('d-msg').textContent = err.message; done.disabled = false; }
     });
     const title = el('button', 'd-todo-title', it.title);
     title.type = 'button';

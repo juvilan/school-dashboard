@@ -1,7 +1,7 @@
 // 오른쪽 칸 접기: 제목을 누르면 접었다 폈다. 기기마다 기억한다 (이 브라우저에만).
 (() => {
   const KEY = 'dash-folded';
-  const CARDS = ['card-spotify', 'card-clip', 'card-sticky', 'card-memo', 'card-ai'];
+  const CARDS = ['card-clip', 'card-sticky', 'card-memo', 'card-ai'];
   const DEFAULT = ['card-memo']; // 처음에는 공유 메모를 접어 둔다
   let folded;
   try { folded = new Set(JSON.parse(localStorage.getItem(KEY)) ?? DEFAULT); } catch { folded = new Set(DEFAULT); }
