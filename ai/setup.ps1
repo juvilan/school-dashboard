@@ -14,6 +14,25 @@ try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
 $Base = 'https://juvilan.github.io/school-dashboard/ai'
 $Dir = Join-Path $env:LOCALAPPDATA 'SchoolDashboardAI'
 $Helper = Join-Path $Dir 'helper.ps1'
+$OpenDir = Join-Path $env:LOCALAPPDATA 'SchoolDashboard'
+$OpenPs = Join-Path $OpenDir 'open.ps1'
+function Register-Dl {
+  # sdash-dl: → open.ps1 (다운로드 폴더 열기 · 방금 받은 파일 열기). 받기에 실패하면 폴더만 여는 예전 방식.
+  $cmd = 'explorer.exe shell:Downloads'
+  try {
+    New-Item $OpenDir -ItemType Directory -Force | Out-Null
+    [Net.ServicePointManager]::SecurityProtocol = 3072
+    Invoke-WebRequest -UseBasicParsing 'https://juvilan.github.io/school-dashboard/ai/open.ps1' -OutFile $OpenPs
+    $ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $cmd = "`"$ps`" -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$OpenPs`" `"%1`""
+  } catch { }
+  $k = 'HKCU:\Software\Classes\sdash-dl'
+  New-Item "$k\shell\open\command" -Force | Out-Null
+  Set-ItemProperty $k '(default)' 'URL:sdash-dl'
+  Set-ItemProperty $k 'URL Protocol' ''
+  Set-ItemProperty "$k\shell\open\command" '(default)' $cmd
+  return ($cmd -notlike 'explorer*')
+}
 $Startup = [Environment]::GetFolderPath('Startup')
 $Lnk = Join-Path $Startup 'SchoolDashboardAI.lnk'
 $Claude = Join-Path $env:USERPROFILE '.local\bin\claude.exe'
@@ -170,14 +189,8 @@ try {
   $s.Description = '학교 대시보드 AI 도우미'
   $s.Save()
   Start-Process -FilePath $ps -ArgumentList $argLine -WindowStyle Hidden
-  # 대시보드의 [📁 다운로드 폴더] 버튼도 같이 켜 둔다 (sdash-dl: 주소 → 탐색기로 다운로드 폴더만 엶, 주소 내용은 쓰지 않음)
-  try {
-    $k = 'HKCU:\Software\Classes\sdash-dl'
-    New-Item "$k\shell\open\command" -Force | Out-Null
-    Set-ItemProperty $k '(default)' 'URL:sdash-dl'
-    Set-ItemProperty $k 'URL Protocol' ''
-    Set-ItemProperty "$k\shell\open\command" '(default)' 'explorer.exe shell:Downloads'
-  } catch { }
+  # 대시보드의 [📁 다운로드] 버튼·받은 파일 [바로 열기]도 같이 켠다 (pc.ps1 의 Register-Dl 과 같음)
+  try { [void](Register-Dl) } catch { }
 
   # 켜졌는지 확인
   $ok = $false

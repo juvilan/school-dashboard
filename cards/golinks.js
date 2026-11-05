@@ -130,26 +130,30 @@
       waiting = false;
       if (!ok) { ok = true; try { localStorage.setItem('dash-dl-ok', '1'); } catch { /* 이번만 */ } }
     });
-    const openDl = () => {
+    const openDl = (what = 'folder') => {
       waiting = true;
       if (ok) return;
       setTimeout(() => {
         if (waiting && document.hasFocus() && !$('dl-dialog').open) {
-          $('dl-intro').textContent = '탐색기가 안 열렸나요? 이 PC 에 처음 한 번만 설정해 주세요.';
+          $('dl-intro').textContent = what === 'file' ? '파일이 안 열렸나요? 이 PC 에 처음 한 번만 설정해 주세요. (받은 파일은 다운로드 폴더에 있어요)' : '탐색기가 안 열렸나요? 이 PC 에 처음 한 번만 설정해 주세요.';
           $('dl-dialog').showModal();
         }
         waiting = false;
       }, 4000);
     };
-    dl.addEventListener('click', openDl);
+    dl.addEventListener('click', () => openDl());
     window.Dash.openDownloads = () => { openDl(); location.href = 'sdash-dl:open'; };
+    // 받은 파일을 기본 앱으로 (open.ps1 이 다운로드 폴더에서 이 이름으로 막 받은 파일만 찾아 연다)
+    // t = 받은 시각: 그보다 먼저 있던 같은 이름 파일(예전 판)은 열지 않는다
+    const latest = (name, t) => `sdash-dl:latest?n=${encodeURIComponent(String(name || ''))}&t=${Math.floor((t || Date.now()) / 1000)}`;
+    window.Dash.openFile = (name, t) => { openDl('file'); location.href = latest(name, t); };
     $('dl-close').addEventListener('click', () => $('dl-dialog').close());
     // 설정 창에서도 다시 열 수 있게 (처음 안내를 닫아 버린 경우)
     const pc = $('t-pc');
     if (pc) {
       pc.hidden = false;
       $('t-pc-open').addEventListener('click', () => {
-        $('dl-intro').textContent = '이 PC 에 한 번만 설정해 두면 [📁 다운로드] 버튼이 탐색기로 다운로드 폴더를 열어요.';
+        $('dl-intro').textContent = '이 PC 에 한 번만 설정해 두면 [📁 다운로드] 버튼이 다운로드 폴더를 열고, 드라이브에서 받은 한글·엑셀·파워포인트 파일이 받자마자 열려요.';
         $('t-settings')?.close();
         $('dl-dialog').showModal();
       });
@@ -157,14 +161,17 @@
     // 처음 한 번(새로 설치했거나 이미 쓰던 선생님이 새로고침했을 때): 등록을 먼저 권한다.
     // 웹페이지·앱 설치는 PC 설정을 직접 바꿀 수 없어서, 붙여넣기 한 번은 선생님이 해야 한다.
     const standalone = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: window-controls-overlay)').matches;
+    // 2: 받은 파일 [바로 열기]가 생겨서, 예전에 설정한 PC 도 한 번 더 권한다
     let asked = false;
-    try { asked = localStorage.getItem('dash-dl-asked') === '1'; } catch { asked = true; }
-    if (!ok && !asked) {
-      $('dl-intro').textContent = `${standalone ? '앱 설치를 마쳤어요! ' : '새 기능이에요! '}이 PC 에 한 번만 설정해 두면 [📁 다운로드] 버튼이 탐색기로 다운로드 폴더를 열어요. (지금 말고 나중에 하려면 [닫기] → 버튼을 누르면 이 안내가 다시 나와요)`;
+    try { asked = localStorage.getItem('dash-dl-asked2') === '1'; } catch { asked = true; }
+    if (!asked) {
+      $('dl-intro').textContent = ok
+        ? '새 기능이에요! 드라이브에서 받은 한글·엑셀·파워포인트 파일이 받자마자 그 프로그램으로 열려요. 이 PC 설정을 한 번 더 해 주세요. (나중에 하려면 [닫기] → [설정]의 "이 PC 설정")'
+        : `${standalone ? '앱 설치를 마쳤어요! ' : '새 기능이에요! '}이 PC 에 한 번만 설정해 두면 [📁 다운로드] 버튼이 다운로드 폴더를 열고, 드라이브에서 받은 한글·엑셀·파워포인트 파일이 받자마자 열려요. (나중에 하려면 [닫기] → [설정]의 "이 PC 설정")`;
       // 다른 창(처음 설정 등)이 떠 있으면 닫힐 때까지 기다렸다가 한 번만
       const tryShow = () => {
         if (document.querySelector('dialog[open]') || document.hidden) { setTimeout(tryShow, 2000); return; }
-        try { localStorage.setItem('dash-dl-asked', '1'); } catch { /* 이번만 */ }
+        try { localStorage.setItem('dash-dl-asked2', '1'); } catch { /* 이번만 */ }
         $('dl-dialog').showModal();
       };
       setTimeout(tryShow, 1500);

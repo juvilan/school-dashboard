@@ -6,12 +6,12 @@
   <meta name="referrer" content="no-referrer-when-downgrade">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>학교 대시보드</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=0.1.0-b1d28afb46">
-  <link rel="icon" href="./icon.svg?v=0.1.0-b1d28afb46" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest?v=0.1.0-9baa01d4d7">
+  <link rel="icon" href="./icon.svg?v=0.1.0-9baa01d4d7" type="image/svg+xml">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#181b21">
   
-  <link rel="stylesheet" href="./style.css?v=0.1.0-b1d28afb46">
+  <link rel="stylesheet" href="./style.css?v=0.1.0-9baa01d4d7">
 </head>
 <body data-edition="teacher" data-host="web">
   <header class="top">
@@ -331,7 +331,7 @@
       </section>
       <section id="t-pc" hidden>
         <h3>이 PC 설정 <span class="small muted">(윈도우, 한 번만)</span></h3>
-        <p class="small muted">[📁 다운로드] 버튼으로 탐색기에서 다운로드 폴더를 열 수 있게 이 PC 에 등록해요. 처음 안내 창을 닫았거나 다른 PC 로 옮겼을 때 여기서 다시 하면 돼요.</p>
+        <p class="small muted">[📁 다운로드] 버튼으로 다운로드 폴더를 열고, 드라이브에서 고른 한글·엑셀·파워포인트 파일을 받자마자 이 PC 의 프로그램으로 열게 등록해요. 처음 안내 창을 닫았거나 다른 PC 로 옮겼을 때 여기서 다시 하면 돼요.</p>
         <button id="t-pc-open" type="button">이 PC 설정 열기</button>
       </section>
       <section>
@@ -353,11 +353,11 @@
         <li><button id="dl-copy" class="small-btn" type="button">아래 줄 복사</button></li>
         <li><kbd>윈도우 키</kbd> + <kbd>R</kbd> 을 누르고, 뜨는 칸에 붙여넣기(<kbd>Ctrl</kbd>+<kbd>V</kbd>) → <kbd>Enter</kbd>. 파란 창에 결과가 나오면 <kbd>Enter</kbd> 로 닫아요.</li>
         <li>크롬(엣지)을 모두 닫았다가 다시 켜요.</li>
-        <li>[📁 다운로드] 버튼을 누르고, 처음 한 번 크롬이 묻는 창에서 <strong>"항상 허용"</strong>을 체크한 뒤 [열기].</li>
+        <li>드라이브 칸에서 파일 이름(또는 [📁 다운로드])을 누르고, 처음 한 번 크롬이 묻는 창에서 <strong>"항상 허용"</strong>을 체크한 뒤 [열기].</li>
       </ol>
       <div class="launch-cmd"><code id="dl-cmd"></code></div>
       <details class="ai-more"><summary>무엇을 바꾸나요?</summary>
-        <p class="small muted">① "sdash-dl:" 주소가 오면 탐색기로 다운로드 폴더를 열게 등록해요 (다른 일은 하지 않음). ② 학교·기관이 관리하는 PC 라면, 이 대시보드에서 받은 엑셀·PPT·워드·한글·PDF·텍스트·그림 파일을 받자마자 열게 해요 (일반 PC 는 브라우저가 이 설정을 받지 않아서, 대신 파란 창이 "이 유형의 파일 항상 열기"를 직접 켜는 법을 알려 줘요). 학교가 이미 넣어 둔 설정은 건드리지 않아요.</p>
+<p class="small muted">① "sdash-dl:" 주소를 이 PC 에 등록해요 (내 윈도우 계정에만). 대시보드가 이 주소를 부르면 다운로드 폴더를 열거나, <strong>방금 받은 그 파일</strong>(최근 10분 안에 받은 한글·엑셀·파워포인트·워드·PDF·텍스트·그림)을 이 PC 의 프로그램으로 열어요. 다른 폴더의 파일이나 다른 종류는 열지 않아요. ② 학교·기관이 관리하는 PC 라면 브라우저에도 "받으면 바로 열기"를 켜요 (학교가 이미 넣어 둔 설정은 건드리지 않음).</p>
         <p class="small muted">되돌리려면 같은 줄의 끝 <code>&amp; $f</code> 를 <code>&amp; $f -Undo</code> 로 바꿔 실행해요.</p>
       </details>
     </div>
@@ -377,24 +377,24 @@
   
 
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script src="./local.js?v=0.1.0-b1d28afb46"></script>
-  <script src="./cards/calendar-logic.js?v=0.1.0-b1d28afb46"></script>
-  <script src="./app.js?v=0.1.0-b1d28afb46"></script>
+  <script src="./local.js?v=0.1.0-9baa01d4d7"></script>
+  <script src="./cards/calendar-logic.js?v=0.1.0-9baa01d4d7"></script>
+  <script src="./app.js?v=0.1.0-9baa01d4d7"></script>
   
-  <script src="./cards/today.js?v=0.1.0-b1d28afb46"></script>
-  <script src="./cards/calendar.js?v=0.1.0-b1d28afb46"></script>
-  <script src="./cards/timetable-logic.js?v=0.1.0-b1d28afb46"></script>
-  <script src="./cards/timetable.js?v=0.1.0-b1d28afb46"></script>
-  <script src="./cards/ttnote.js?v=0.1.0-b1d28afb46"></script>
-  <script src="./cards/gcal.js?v=0.1.0-b1d28afb46"></script>
-  <script src="./cards/clip.js?v=0.1.0-b1d28afb46"></script>
+  <script src="./cards/today.js?v=0.1.0-9baa01d4d7"></script>
+  <script src="./cards/calendar.js?v=0.1.0-9baa01d4d7"></script>
+  <script src="./cards/timetable-logic.js?v=0.1.0-9baa01d4d7"></script>
+  <script src="./cards/timetable.js?v=0.1.0-9baa01d4d7"></script>
+  <script src="./cards/ttnote.js?v=0.1.0-9baa01d4d7"></script>
+  <script src="./cards/gcal.js?v=0.1.0-9baa01d4d7"></script>
+  <script src="./cards/clip.js?v=0.1.0-9baa01d4d7"></script>
   
-  <script src="./cards/sticky.js?v=0.1.0-b1d28afb46"></script>
+  <script src="./cards/sticky.js?v=0.1.0-9baa01d4d7"></script>
   
-  <script src="./cards/ai.js?v=0.1.0-b1d28afb46"></script>
-  <script src="./cards/drive.js?v=0.1.0-b1d28afb46"></script>
-  <script src="./cards/golinks.js?v=0.1.0-b1d28afb46"></script>
-  <script src="./cards/fold.js?v=0.1.0-b1d28afb46"></script>
-  <script src="./cards/teacher.js?v=0.1.0-b1d28afb46"></script>
+  <script src="./cards/ai.js?v=0.1.0-9baa01d4d7"></script>
+  <script src="./cards/drive.js?v=0.1.0-9baa01d4d7"></script>
+  <script src="./cards/golinks.js?v=0.1.0-9baa01d4d7"></script>
+  <script src="./cards/fold.js?v=0.1.0-9baa01d4d7"></script>
+  <script src="./cards/teacher.js?v=0.1.0-9baa01d4d7"></script>
 </body>
 </html>

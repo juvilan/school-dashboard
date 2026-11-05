@@ -1,5 +1,5 @@
 ﻿# 학교 대시보드: 이 PC 설정 (윈도우, 한 번만). 대시보드의 "이 PC 설정" 줄을 Win+R 에 붙여넣으면 받아서 실행된다.
-#  1) [📁 다운로드 폴더] 버튼: sdash-dl: 주소 → 탐색기로 다운로드 폴더만 연다 (주소 내용은 쓰지 않음, 내 계정 HKCU 에만)
+#  1) sdash-dl: 주소 → open.ps1 (내 계정 HKCU 에만): 다운로드 폴더 열기, 방금 받은 파일을 기본 앱으로 열기
 #  2) 크롬·엣지에서 대시보드(juvilan.github.io)에서 받은 엑셀·PPT·워드·한글·PDF·텍스트·그림 파일은 받자마자
 #     윈도우 기본 앱으로 열기 (브라우저 정책 AutoOpenFileTypes + AutoOpenAllowedForURLs).
 #     크롬·엣지는 이 정책을 도메인(AD/Azure AD)에 가입했거나 관리 등록된 PC 에서만 따른다 → 그런 PC 에서만 넣고,
@@ -43,6 +43,7 @@ Say '--------------------------' 'Cyan'
 
 if ($Undo) {
   Remove-Item $Proto -Recurse -Force -ErrorAction SilentlyContinue
+  Remove-Item (Join-Path $env:LOCALAPPDATA 'SchoolDashboard\open.ps1') -Force -ErrorAction SilentlyContinue
   Say '다운로드 폴더 버튼 등록을 지웠어요.' 'Green'
   foreach ($b in $Browsers) {
     $mk = "$Mark\$($b.Name)"
@@ -59,13 +60,30 @@ if ($Undo) {
   Write-Host ''; Read-Host '엔터를 누르면 이 창이 닫혀요'; exit 0
 }
 
-# 1) 다운로드 폴더 버튼
+$OpenDir = Join-Path $env:LOCALAPPDATA 'SchoolDashboard'
+$OpenPs = Join-Path $OpenDir 'open.ps1'
+function Register-Dl {
+  # sdash-dl: → open.ps1 (다운로드 폴더 열기 · 방금 받은 파일 열기). 받기에 실패하면 폴더만 여는 예전 방식.
+  $cmd = 'explorer.exe shell:Downloads'
+  try {
+    New-Item $OpenDir -ItemType Directory -Force | Out-Null
+    [Net.ServicePointManager]::SecurityProtocol = 3072
+    Invoke-WebRequest -UseBasicParsing 'https://juvilan.github.io/school-dashboard/ai/open.ps1' -OutFile $OpenPs
+    $ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $cmd = "`"$ps`" -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$OpenPs`" `"%1`""
+  } catch { }
+  $k = 'HKCU:\Software\Classes\sdash-dl'
+  New-Item "$k\shell\open\command" -Force | Out-Null
+  Set-ItemProperty $k '(default)' 'URL:sdash-dl'
+  Set-ItemProperty $k 'URL Protocol' ''
+  Set-ItemProperty "$k\shell\open\command" '(default)' $cmd
+  return ($cmd -notlike 'explorer*')
+}
+
+# 1) 다운로드 폴더 버튼 + 받은 파일 바로 열기
 try {
-  New-Item "$Proto\shell\open\command" -Force | Out-Null
-  Set-ItemProperty $Proto '(default)' 'URL:sdash-dl'
-  Set-ItemProperty $Proto 'URL Protocol' ''
-  Set-ItemProperty "$Proto\shell\open\command" '(default)' 'explorer.exe shell:Downloads'
-  Say '1/2 [다운로드 폴더] 버튼을 켰어요.' 'Green'
+  if (Register-Dl) { Say '1/2 [📁 다운로드] 버튼과 받은 파일 [바로 열기]를 켰어요.' 'Green' }
+  else { Say '1/2 [📁 다운로드] 버튼을 켰어요. (바로 열기 파일은 받지 못했어요. 인터넷을 확인하고 다시 해 주세요)' 'Yellow' }
 } catch {
   Say ('1/2 다운로드 폴더 버튼을 켜지 못했어요: ' + $_.Exception.Message) 'Red'
 }

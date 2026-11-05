@@ -4996,11 +4996,19 @@ data: ${snap}
       const blob = await res.blob();
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = ex && !file.name.toLowerCase().endsWith(ex[1]) ? file.name + ex[1] : file.name;
+      let nm = String(file.name || "drive-file").normalize("NFC").trim().replace(/[<>:"/\\|?*~\u0000-\u001f\u007f\p{Cf}]/gu, "_");
+      if (ex && !nm.toLowerCase().endsWith(ex[1])) nm += ex[1];
+      const dot = nm.lastIndexOf(".");
+      const ext = dot > 0 && nm.length - dot <= 6 ? nm.slice(dot) : "";
+      const tidy = (x) => x.replace(/^[.\s]+/, "").replace(/[.\s]+$/, "");
+      let stem = tidy(Array.from(tidy(ext ? nm.slice(0, dot) : nm)).slice(0, 120).join("")) || "drive-file";
+      if (/^(con|prn|aux|nul|com\d|lpt\d)$/i.test(stem)) stem = `_${stem}`;
+      a.download = stem + ext;
       document.body.append(a);
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 6e4);
+      return a.download;
     }
     return { configured: () => Boolean(GOOGLE_CLIENT_ID && GOOGLE_API_KEY), pick, download, canDownload, forget() {
       token = null;
