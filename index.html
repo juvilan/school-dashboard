@@ -2,23 +2,27 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; img-src 'self' data: blob:; connect-src 'self' http://127.0.0.1:47615 https://generativelanguage.googleapis.com https://open.neis.go.kr https://api.open-meteo.com https://geocoding-api.open-meteo.com https://www.googleapis.com https://oauth2.googleapis.com https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://accounts.google.com/gsi/client https://apis.google.com; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; img-src 'self' data: blob:; connect-src 'self' http://127.0.0.1:47615 https://generativelanguage.googleapis.com https://open.neis.go.kr https://api.open-meteo.com https://geocoding-api.open-meteo.com https://www.googleapis.com https://oauth2.googleapis.com https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/ https://docs.google.com https://drive.google.com https://content.googleapis.com; object-src 'none'; base-uri 'none'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>학교 대시보드</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=0.1.0-b598aa86e0">
-  <link rel="icon" href="./icon.svg?v=0.1.0-b598aa86e0" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest?v=0.1.0-b5cf93e8a4">
+  <link rel="icon" href="./icon.svg?v=0.1.0-b5cf93e8a4" type="image/svg+xml">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#181b21">
   
-  <link rel="stylesheet" href="./style.css?v=0.1.0-b598aa86e0">
+  <link rel="stylesheet" href="./style.css?v=0.1.0-b5cf93e8a4">
 </head>
 <body data-edition="teacher" data-host="web">
   <header class="top">
-    <h1>대시보드</h1>
+    <h1 class="sr-only">대시보드</h1>
     <nav class="links" aria-label="바로가기">
-      
-      <a id="ln-portal" class="link-btn" href="https://sen.eduptl.kr/bpm_lgn_lg00_001.do?noEpSession" target="_blank" rel="noopener noreferrer" title="서울 업무포털 (새 탭)">업무포털</a>
+      <span id="go-links" class="go-links"></span>
+      <button id="go-edit" class="ghost small-btn go-edit" type="button" title="바로가기 고치기" aria-label="바로가기 고치기">✎</button>
+      <form id="go-search" class="go-search" role="search">
+        <input id="go-q" type="search" autocomplete="off" placeholder="검색" aria-label="검색어">
+        <select id="go-engine" aria-label="검색 사이트"><option value="naver">네이버</option><option value="google">구글</option></select>
+      </form>
       <span id="w-install" class="ln-hint" role="status" hidden><span id="w-install-text">설치해서 쓰면 프로그램처럼 따로 열려요.</span> <button id="w-install-btn" type="button" class="small-btn">앱으로 설치</button> <button id="w-install-x" type="button" class="ghost small-btn x" aria-label="닫기">×</button></span>
     </nav>
     <span class="spacer"></span>
@@ -69,6 +73,11 @@
         </div>
         <p id="tt-msg" class="msg" role="alert"></p>
       </section>
+      <section class="card drive-card" id="card-drive" aria-label="구글 드라이브" hidden>
+        <div class="card-head"><h2>구글 드라이브</h2><button id="drive-pick" class="small-btn" type="button">파일 고르기</button></div>
+        <ul id="drive-list" class="drive-list"></ul>
+        <p id="drive-msg" class="msg" role="alert"></p>
+      </section>
       <section class="card cal-card" id="card-cal">
         <div class="cal-head">
           <div class="row">
@@ -91,18 +100,6 @@
       </section>
     </div>
     <div class="col col-main">
-      
-      <section class="card" id="card-go">
-        <div class="card-head"><h2>바로가기</h2><button id="go-edit" class="ghost small-btn" type="button">고치기</button></div>
-        <form id="go-search" class="go-search" role="search">
-          <input id="go-q" type="search" autocomplete="off" placeholder="검색어를 적고 Enter" aria-label="검색어">
-          <select id="go-engine" aria-label="검색 사이트"><option value="naver">네이버</option><option value="google">구글</option></select>
-          <button type="submit">검색</button>
-        </form>
-        <div id="go-tiles" class="go-tiles"></div>
-        <p id="go-msg" class="msg" role="alert"></p>
-      </section>
-      
       
     </div>
     <div class="col col-right">
@@ -341,6 +338,7 @@
       <p id="t-msg" class="msg" role="alert"></p>
     </div>
   </dialog>
+  
   <dialog id="go-dialog">
     <div class="tt-form t-form">
       <div class="dialog-head"><h2>바로가기 고치기</h2><button id="go-close" class="ghost" type="button">닫기</button></div>
@@ -354,25 +352,26 @@
     </div>
   </dialog>
   
-  
 
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script src="./local.js?v=0.1.0-b598aa86e0"></script>
-  <script src="./cards/calendar-logic.js?v=0.1.0-b598aa86e0"></script>
-  <script src="./app.js?v=0.1.0-b598aa86e0"></script>
+  <script src="./local.js?v=0.1.0-b5cf93e8a4"></script>
+  <script src="./cards/calendar-logic.js?v=0.1.0-b5cf93e8a4"></script>
+  <script src="./app.js?v=0.1.0-b5cf93e8a4"></script>
   
-  <script src="./cards/today.js?v=0.1.0-b598aa86e0"></script>
-  <script src="./cards/calendar.js?v=0.1.0-b598aa86e0"></script>
-  <script src="./cards/timetable-logic.js?v=0.1.0-b598aa86e0"></script>
-  <script src="./cards/timetable.js?v=0.1.0-b598aa86e0"></script>
-  <script src="./cards/ttnote.js?v=0.1.0-b598aa86e0"></script>
-  <script src="./cards/gcal.js?v=0.1.0-b598aa86e0"></script>
-  <script src="./cards/clip.js?v=0.1.0-b598aa86e0"></script>
+  <script src="./cards/today.js?v=0.1.0-b5cf93e8a4"></script>
+  <script src="./cards/calendar.js?v=0.1.0-b5cf93e8a4"></script>
+  <script src="./cards/timetable-logic.js?v=0.1.0-b5cf93e8a4"></script>
+  <script src="./cards/timetable.js?v=0.1.0-b5cf93e8a4"></script>
+  <script src="./cards/ttnote.js?v=0.1.0-b5cf93e8a4"></script>
+  <script src="./cards/gcal.js?v=0.1.0-b5cf93e8a4"></script>
+  <script src="./cards/clip.js?v=0.1.0-b5cf93e8a4"></script>
   
-  <script src="./cards/sticky.js?v=0.1.0-b598aa86e0"></script>
+  <script src="./cards/sticky.js?v=0.1.0-b5cf93e8a4"></script>
   
-  <script src="./cards/ai.js?v=0.1.0-b598aa86e0"></script>
-  <script src="./cards/fold.js?v=0.1.0-b598aa86e0"></script>
-  <script src="./cards/teacher.js?v=0.1.0-b598aa86e0"></script>
+  <script src="./cards/ai.js?v=0.1.0-b5cf93e8a4"></script>
+  <script src="./cards/drive.js?v=0.1.0-b5cf93e8a4"></script>
+  <script src="./cards/golinks.js?v=0.1.0-b5cf93e8a4"></script>
+  <script src="./cards/fold.js?v=0.1.0-b5cf93e8a4"></script>
+  <script src="./cards/teacher.js?v=0.1.0-b5cf93e8a4"></script>
 </body>
 </html>

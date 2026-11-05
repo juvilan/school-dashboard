@@ -238,7 +238,7 @@
       box.append(del);
     }
     body.append(box);
-    inp.focus();
+    inp.focus({ preventScroll: true });
   }
   // 키가 맞는지 보고, 쓸 수 있는 Flash 모델 중 가장 알맞은 것을 고른다 (이름이 바뀌어도 따라가게)
   async function pickGeminiModel(key) {

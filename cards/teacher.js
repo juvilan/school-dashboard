@@ -1,5 +1,4 @@
-// 배포판(선생님용) 전용: 바로가기 칸(사이트 버튼 + 검색), 설정 창(학교·업무포털), 처음 실행 안내.
-// 바로가기·업무포털은 이 PC 의 기본 브라우저로 연다(/api/open). 안 되면 새 창으로.
+// 배포판(선생님용) 전용: 설정 창(학교·업무포털), 처음 실행 안내. 바로가기·검색은 맨 위 줄(cards/golinks.js).
 (() => {
   const { state, api, listen, $ } = window.Dash;
   if (window.Dash.edition !== 'teacher') return;
@@ -15,129 +14,18 @@
   const OFFICES = [['B10', '서울'], ['C10', '부산'], ['D10', '대구'], ['E10', '인천'], ['F10', '광주'], ['G10', '대전'], ['H10', '울산'], ['I10', '세종'],
     ['J10', '경기'], ['K10', '강원'], ['M10', '충북'], ['N10', '충남'], ['P10', '전북'], ['Q10', '전남'], ['R10', '경북'], ['S10', '경남'], ['T10', '제주']];
 
-  async function openUrl(url) {
-    try {
-      await api('POST', '/api/open', { url });
-    } catch {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    }
-  }
-
-  // ---- 배치: 달력을 가운데로, 바로가기는 왼쪽(시간표 아래)으로 ----
+  // ---- 배치: 달력을 가운데 칸 맨 위로 (바로가기는 맨 위 줄, cards/golinks.js) ----
   {
     const cal = $('card-cal');
-    const go = $('card-go');
-    const left = cal.parentNode;
-    const main = go.parentNode;
-    left.insertBefore(go, cal);
-    main.prepend(cal);
+    cal.parentNode.parentNode.querySelector('.col-main').prepend(cal);
     cal.classList.add('cal-big');
   }
-
-  // ---- 위 띠: 업무포털 버튼 ----
-  const portalBtn = $('ln-portal');
-  portalBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    const url = S().portal.url;
-    if (url) openUrl(url);
-    else openSettings();
-  });
-
-  // ---- 바로가기 칸 ----
-  const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return ''; } };
-  function renderTiles() {
-    const box = $('go-tiles');
-    box.textContent = '';
+  // 창 제목은 학교 이름으로
+  function renderTitle() {
     const s = S();
-    const all = [
-      ...(s.portal.url ? [{ title: '업무포털', url: s.portal.url, portal: true }] : []),
-      ...(s.neis ? [{ title: '나이스', url: s.neis, portal: true }] : []),
-      ...s.links,
-    ];
-    for (const l of all) {
-      const b = el('button', `go-tile${l.portal ? ' portal' : ''}`);
-      b.type = 'button';
-      b.title = l.url;
-      b.append(el('span', 'go-letter', l.title.slice(0, 1)), el('span', 'go-name', l.title), el('span', 'go-host muted', host(l.url)));
-      b.addEventListener('click', () => openUrl(l.url));
-      box.append(b);
-    }
-    if (!all.length) box.append(el('p', 'muted small', '[고치기]를 눌러 자주 가는 사이트를 넣어 주세요.'));
-    $('go-engine').value = s.search;
-    portalBtn.href = s.portal.url || '#'; // 가운데 클릭 등으로 click 을 거치지 않아도 맞는 곳으로
-    portalBtn.title = s.portal.url ? '업무포털 (기본 브라우저로)' : '설정에서 교육청을 고르면 업무포털 주소가 정해져요';
     document.title = s.school ? `${s.school.name} 대시보드` : '학교 대시보드';
-    document.querySelector('header h1').textContent = s.school ? `${s.school.name} 대시보드` : '학교 대시보드';
+    document.querySelector('header h1').textContent = document.title;
   }
-
-  $('go-search').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const q = $('go-q').value.trim();
-    if (!q) return;
-    const engine = $('go-engine').value;
-    const url = engine === 'google' ? `https://www.google.com/search?q=${encodeURIComponent(q)}` : `https://search.naver.com/search.naver?query=${encodeURIComponent(q)}`;
-    openUrl(url);
-    $('go-q').value = '';
-  });
-  $('go-engine').addEventListener('change', () => {
-    api('PUT', '/api/settings/search', { search: $('go-engine').value }).catch((err) => { $('go-msg').textContent = err.message; });
-  });
-
-  // ---- 바로가기 고치기 창 ----
-  let draft = [];
-  async function saveLinks(next) {
-    try {
-      await api('PUT', '/api/settings/links', { links: next });
-      draft = next;
-      $('go-d-msg').textContent = '';
-      renderRows();
-      return true;
-    } catch (err) {
-      $('go-d-msg').textContent = err.message;
-      return false;
-    }
-  }
-  function renderRows() {
-    const box = $('go-rows');
-    box.textContent = '';
-    draft.forEach((l, i) => {
-      const li = el('li', 'go-row');
-      li.append(el('strong', '', l.title), el('span', 'muted small go-row-url', l.url));
-      const up = el('button', 'ghost small-btn', '↑');
-      up.type = 'button';
-      up.disabled = i === 0;
-      up.setAttribute('aria-label', `${l.title} 위로`);
-      up.addEventListener('click', () => { const n = [...draft]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; saveLinks(n); });
-      const del = el('button', 'ghost small-btn', '지우기');
-      del.type = 'button';
-      del.addEventListener('click', () => {
-        if (del.dataset.armed !== '1') { del.dataset.armed = '1'; del.textContent = '한 번 더'; del.classList.add('armed'); setTimeout(() => { del.dataset.armed = ''; del.textContent = '지우기'; del.classList.remove('armed'); }, 3000); return; }
-        saveLinks(draft.filter((_, j) => j !== i));
-      });
-      li.append(up, del);
-      box.append(li);
-    });
-    if (!draft.length) box.append(el('li', 'muted small', '아직 없어요. 아래에서 추가해 주세요.'));
-  }
-  $('go-edit').addEventListener('click', () => {
-    draft = [...S().links];
-    renderRows();
-    $('go-d-msg').textContent = '';
-    $('go-dialog').showModal();
-    $('go-add-title').focus();
-  });
-  $('go-close').addEventListener('click', () => $('go-dialog').close());
-  $('go-add').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const title = $('go-add-title').value.trim();
-    const url = $('go-add-url').value.trim();
-    if (!title || !url) { $('go-d-msg').textContent = '이름과 주소를 모두 적어 주세요.'; return; }
-    if (await saveLinks([...draft, { title, url }])) {
-      $('go-add-title').value = '';
-      $('go-add-url').value = '';
-      $('go-add-title').focus();
-    }
-  });
 
   // ---- 설정 창 ----
   const tmsg = (t) => { $('t-msg').textContent = t || ''; };
@@ -218,7 +106,7 @@
   // 처음(학교를 아직 안 골랐을 때) 한 번 설정 창을 연다
   let asked = false;
   listen('settings', () => {
-    renderTiles();
+    renderTitle();
     if ($('t-settings').open) renderSettings();
     if (!asked && state.data.settings && !state.data.settings.office) { asked = true; openSettings(); }
   });
