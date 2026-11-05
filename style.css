@@ -851,7 +851,8 @@ a.drive-name:hover { color: var(--accent); text-decoration: underline; }
   .col-left > #card-drive { flex: 1 1 0; min-height: 140px; display: flex; flex-direction: column; }
   #card-drive .drive-list { flex: 1 1 0; min-height: 0; max-height: none; }
 }
-.drive-card .card-head { gap: 6px; }
-.drive-card .card-head h2 { margin-right: auto; }
-.drive-card .go-dl { margin-top: 0; padding: 3px 10px; font-size: 13px; border: 1px solid var(--line); border-radius: 8px; color: var(--text); text-decoration: none; white-space: nowrap; }
+.drive-card .card-head { gap: 6px; flex-wrap: nowrap; align-items: center; }
+.drive-card .card-head h2 { margin-right: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.drive-card .card-head .small-btn { margin-top: 0; flex: none; white-space: nowrap; height: 30px; padding: 0 10px; font-size: 13px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; }
+.drive-card .go-dl { border: 1px solid var(--line); color: var(--text); text-decoration: none; background: transparent; }
 .drive-card .go-dl:hover { border-color: var(--accent); color: var(--accent); }

@@ -114,7 +114,8 @@
     // 웹판: 드라이브 칸이 있으면 [파일 고르기] 옆으로 (받은 파일을 바로 찾게)
     const drive = $('card-drive');
     if (drive && !drive.hidden) {
-      dl.textContent = '📁 다운로드 폴더';
+      dl.textContent = '📁 다운로드';
+      dl.title = '다운로드 폴더 열기';
       dl.className = 'ghost small-btn go-dl';
       drive.querySelector('.card-head').insertBefore(dl, $('drive-pick'));
     }
