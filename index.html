@@ -6,12 +6,12 @@
   <meta name="referrer" content="no-referrer-when-downgrade">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>학교 대시보드</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=0.1.0-104f428233">
-  <link rel="icon" href="./icon.svg?v=0.1.0-104f428233" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest?v=0.1.0-c1f41a64a9">
+  <link rel="icon" href="./icon.svg?v=0.1.0-c1f41a64a9" type="image/svg+xml">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#181b21">
   
-  <link rel="stylesheet" href="./style.css?v=0.1.0-104f428233">
+  <link rel="stylesheet" href="./style.css?v=0.1.0-c1f41a64a9">
 </head>
 <body data-edition="teacher" data-host="web">
   <header class="top">
@@ -73,6 +73,7 @@
         <div class="row tt-foot">
           <p id="tt-hint" class="muted small"></p>
           <div class="row">
+            <button id="tt-neis-open" class="small-btn" type="button" hidden>나이스에서 가져오기</button>
             <button id="tt-bulk-open" class="ghost small-btn" type="button" hidden>표 붙여넣기</button>
             <button id="tt-copy-all" class="ghost small-btn" type="button" hidden>표 복사</button>
             <button id="tt-bells-open" class="ghost small-btn" type="button" hidden>종 시간</button>
@@ -296,6 +297,31 @@
     </form>
   </dialog>
 
+  <dialog id="tt-neis" class="tt-neis">
+    <form id="tt-neis-form" class="tt-form tt-bulk-form">
+      <div class="dialog-head"><h2>나이스에서 시간표 가져오기</h2><button id="tt-neis-close" class="ghost" type="button">닫기</button></div>
+      <p class="muted small">나이스 공개 자료에는 반별 시간표만 있고 선생님 이름은 없어요. 내가 가르치는 과목과 반을 한 번 골라 주면 기본 시간표(매주)로 넣어요.</p>
+      <p id="tt-neis-status" class="small" role="status"></p>
+      <div id="tt-neis-step1" hidden>
+        <h3>1. 내 과목</h3>
+        <input id="tt-neis-q" type="search" placeholder="과목 찾기 (예: 국어)" aria-label="과목 찾기" autocomplete="off">
+        <div id="tt-neis-subjects" class="neis-chips" role="group" aria-label="과목"></div>
+      </div>
+      <div id="tt-neis-step2" hidden>
+        <h3>2. 내가 들어가는 반</h3>
+        <div id="tt-neis-classes" class="neis-classes"></div>
+      </div>
+      <div id="tt-neis-step3" hidden>
+        <h3>3. 미리 보기</h3>
+        <div id="tt-neis-preview" class="tt-grid tt-bulk-preview" aria-label="미리 보기"></div>
+        <p id="tt-neis-info" class="muted small"></p>
+        <label class="small"><input type="checkbox" id="tt-neis-keep" checked> 내 수업이 아닌 칸은 지금 시간표 그대로 두기 (끄면 비워요)</label>
+        <div class="row"><button id="tt-neis-save" type="submit">기본 시간표로 넣기</button></div>
+      </div>
+      <p id="tt-neis-msg" class="msg" role="alert"></p>
+    </form>
+  </dialog>
+
   <dialog id="tt-bells">
     <form id="tt-bells-form" class="tt-form">
       <h2>종 시간</h2>
@@ -398,27 +424,29 @@
   
 
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script src="./local.js?v=0.1.0-104f428233"></script>
-  <script src="./cards/calendar-logic.js?v=0.1.0-104f428233"></script>
-  <script src="./app.js?v=0.1.0-104f428233"></script>
+  <script src="./local.js?v=0.1.0-c1f41a64a9"></script>
+  <script src="./cards/calendar-logic.js?v=0.1.0-c1f41a64a9"></script>
+  <script src="./app.js?v=0.1.0-c1f41a64a9"></script>
   
-  <script src="./cards/ui.js?v=0.1.0-104f428233"></script>
-  <script src="./cards/today.js?v=0.1.0-104f428233"></script>
-  <script src="./cards/calendar.js?v=0.1.0-104f428233"></script>
-  <script src="./cards/timetable-logic.js?v=0.1.0-104f428233"></script>
-  <script src="./cards/timetable.js?v=0.1.0-104f428233"></script>
-  <script src="./cards/ttnote.js?v=0.1.0-104f428233"></script>
-  <script src="./cards/gcal.js?v=0.1.0-104f428233"></script>
-  <script src="./cards/clip.js?v=0.1.0-104f428233"></script>
+  <script src="./cards/ui.js?v=0.1.0-c1f41a64a9"></script>
+  <script src="./cards/today.js?v=0.1.0-c1f41a64a9"></script>
+  <script src="./cards/calendar.js?v=0.1.0-c1f41a64a9"></script>
+  <script src="./cards/timetable-logic.js?v=0.1.0-c1f41a64a9"></script>
+  <script src="./cards/timetable.js?v=0.1.0-c1f41a64a9"></script>
+  <script src="./cards/neistt-logic.js?v=0.1.0-c1f41a64a9"></script>
+  <script src="./cards/neistt.js?v=0.1.0-c1f41a64a9"></script>
+  <script src="./cards/ttnote.js?v=0.1.0-c1f41a64a9"></script>
+  <script src="./cards/gcal.js?v=0.1.0-c1f41a64a9"></script>
+  <script src="./cards/clip.js?v=0.1.0-c1f41a64a9"></script>
   
-  <script src="./cards/sticky.js?v=0.1.0-104f428233"></script>
+  <script src="./cards/sticky.js?v=0.1.0-c1f41a64a9"></script>
   
-  <script src="./cards/ai.js?v=0.1.0-104f428233"></script>
-  <script src="./cards/drive.js?v=0.1.0-104f428233"></script>
-  <script src="./cards/golinks.js?v=0.1.0-104f428233"></script>
-  <script src="./cards/fold.js?v=0.1.0-104f428233"></script>
-  <script src="./cards/pip.js?v=0.1.0-104f428233"></script>
-  <script src="./cards/dock.js?v=0.1.0-104f428233"></script>
-  <script src="./cards/teacher.js?v=0.1.0-104f428233"></script>
+  <script src="./cards/ai.js?v=0.1.0-c1f41a64a9"></script>
+  <script src="./cards/drive.js?v=0.1.0-c1f41a64a9"></script>
+  <script src="./cards/golinks.js?v=0.1.0-c1f41a64a9"></script>
+  <script src="./cards/fold.js?v=0.1.0-c1f41a64a9"></script>
+  <script src="./cards/pip.js?v=0.1.0-c1f41a64a9"></script>
+  <script src="./cards/dock.js?v=0.1.0-c1f41a64a9"></script>
+  <script src="./cards/teacher.js?v=0.1.0-c1f41a64a9"></script>
 </body>
 </html>

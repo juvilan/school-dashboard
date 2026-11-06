@@ -2912,6 +2912,89 @@ data: ${snap}
     }
   });
 
+  // ../lib/neis-timetable.js
+  var require_neis_timetable = __commonJS({
+    "../lib/neis-timetable.js"(exports, module) {
+      var BASE = "https://open.neis.go.kr/hub/";
+      var KINDS = { \uCD08\uB4F1\uD559\uAD50: "els", \uC911\uD559\uAD50: "mis", \uACE0\uB4F1\uD559\uAD50: "his", \uD2B9\uC218\uD559\uAD50: "sps" };
+      function kindOf(name, knd = "") {
+        if (KINDS[knd]) return KINDS[knd];
+        const n = String(name || "");
+        if (/초등학교$/.test(n)) return "els";
+        if (/중학교$/.test(n)) return "mis";
+        if (/고등학교$/.test(n)) return "his";
+        return "sps";
+      }
+      var ymd = (s) => /^\d{8}$/.test(String(s)) ? `${String(s).slice(0, 4)}-${String(s).slice(4, 6)}-${String(s).slice(6, 8)}` : null;
+      var clean = (v, max) => String(v ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+      function normalize(rows) {
+        const out = [];
+        for (const r of rows || []) {
+          const date = ymd(r.ALL_TI_YMD);
+          const period = Number(r.PERIO);
+          const subject = clean(r.ITRT_CNTNT, 40).replace(/^-+$/, "");
+          if (!date || !Number.isInteger(period) || period < 1 || period > 15 || !subject) continue;
+          const track = [clean(r.SCHUL_CRSE_SC_NM, 10), clean(r.DGHT_CRSE_SC_NM, 6).replace(/^주간$/, ""), clean(r.DDDEP_NM, 20)].filter(Boolean).join(" ");
+          out.push({
+            date,
+            term: r.AY && r.SEM ? `${clean(r.AY, 4)}-${clean(r.SEM, 2)}` : "",
+            // 학년도-학기 (경계 주에 두 학기가 섞이지 않게)
+            track,
+            grade: clean(r.GRADE, 4),
+            klass: clean(r.CLASS_NM, 10),
+            period,
+            subject,
+            room: clean(r.CLRM_NM, 20)
+          });
+        }
+        return out;
+      }
+      async function fetchTimetable({ key, school, from, to, getJson }) {
+        if (!school || !school.office || !school.code) return null;
+        const kind = kindOf(school.name, school.kind);
+        const u = new URL(`${BASE}${kind}Timetable`);
+        u.search = new URLSearchParams({
+          Type: "json",
+          pIndex: "1",
+          pSize: "1000",
+          ...key ? { KEY: key } : {},
+          ATPT_OFCDC_SC_CODE: school.office,
+          SD_SCHUL_CODE: school.code,
+          TI_FROM_YMD: from.replaceAll("-", ""),
+          TI_TO_YMD: to.replaceAll("-", "")
+        });
+        const PARTIAL = "\uB098\uC774\uC2A4 \uC2DC\uAC04\uD45C\uB97C \uB05D\uAE4C\uC9C0 \uBC1B\uC9C0 \uBABB\uD588\uC5B4\uC694. \uC7A0\uC2DC \uB4A4 \uB2E4\uC2DC \uD574 \uC8FC\uC138\uC694.";
+        const rows = [];
+        let total = -1;
+        let done = false;
+        for (let page = 1; page <= 10 && !done; page += 1) {
+          u.searchParams.set("pIndex", String(page));
+          const j = await getJson(u.toString());
+          const block = j?.[`${kind}Timetable`];
+          if (!block) {
+            const code = j?.RESULT?.CODE;
+            if (code === "INFO-200" && page === 1) return { kind, rows: [] };
+            if (code === "INFO-200" && total < 0 && rows.length % 1e3 === 0) {
+              done = true;
+              break;
+            }
+            if (code === "INFO-200") throw new Error(PARTIAL);
+            throw new Error(j?.RESULT?.MESSAGE ? `\uB098\uC774\uC2A4: ${j.RESULT.MESSAGE}` : "\uB098\uC774\uC2A4 \uC2DC\uAC04\uD45C\uB97C \uC77D\uC9C0 \uBABB\uD588\uC5B4\uC694.");
+          }
+          const got = block[1]?.row;
+          if (!Array.isArray(got)) throw new Error("\uB098\uC774\uC2A4 \uC2DC\uAC04\uD45C \uC751\uB2F5 \uBAA8\uC591\uC774 \uC774\uC0C1\uD574\uC694.");
+          rows.push(...got);
+          const n = Number(block[0]?.head?.[0]?.list_total_count);
+          if (Number.isInteger(n) && n >= 0) total = n;
+          if (total >= 0 ? rows.length >= total : got.length < 1e3) done = true;
+        }
+        if (!done || total >= 0 && rows.length < total) throw new Error(PARTIAL);
+        return { kind, rows: normalize(rows) };
+      }
+      module.exports = { kindOf, normalize, fetchTimetable };
+    }
+  });
+
   // ../lib/today.js
   var require_today = __commonJS({
     "../lib/today.js"(exports, module) {
@@ -4181,7 +4264,9 @@ data: ${snap}
                 } catch {
                   return "";
                 }
-              })()
+              })(),
+              kind: String(r.SCHUL_KND_SC_NM || "").slice(0, 10)
+              // 초등학교·중학교·고등학교·특수학교… (나이스 시간표 주소 고를 때)
             }));
           },
           // 고른 학교 저장 (검색 결과 하나를 그대로). 업무포털 주소는 바꾸지 않았다면 새 교육청 것으로
@@ -4193,6 +4278,7 @@ data: ${snap}
               code: String(pick.code),
               name: cleanSchoolName(pick.name),
               address: typeof pick.address === "string" ? pick.address.slice(0, 100) : "",
+              kind: typeof pick.kind === "string" ? pick.kind.slice(0, 10) : "",
               homepage: (() => {
                 try {
                   return pick.homepage ? cleanUrl(pick.homepage) : "";
@@ -4289,6 +4375,7 @@ data: ${snap}
       var { createTodos } = require_todos();
       var { createSchool } = require_school();
       var { neisSchedule } = require_neis_schedule();
+      var { fetchTimetable } = require_neis_timetable();
       var { createToday, localDate: localDate2 } = require_today();
       var { createTimetable } = require_timetable();
       var { createTtNotes } = require_ttnotes();
@@ -4321,18 +4408,19 @@ data: ${snap}
         const stickies = createStickies(db, hub);
         const google2 = createGoogle(cfg, hub, db, { ...deps.google, web: opts.googleWeb || offGoogle });
         hub.register("google", () => ({ changedAt: 0 }), "read");
+        const neisGet = async (url) => {
+          const res = await fetch(url, { signal: AbortSignal.timeout(1e4) });
+          if (!res.ok) throw new Error(`\uB098\uC774\uC2A4 \uC751\uB2F5 ${res.status}`);
+          try {
+            return await res.json();
+          } catch {
+            throw new Error("\uB098\uC774\uC2A4\uAC00 \uC9C0\uAE08 \uC790\uB8CC\uB97C \uC8FC\uC9C0 \uC54A\uC544\uC694 (\uC810\uAC80 \uC911\uC77C \uC218 \uC788\uC5B4\uC694).");
+          }
+        };
         const schoolDeps = deps.school || (opts.neisKey ? neisSchedule({
           key: opts.neisKey,
           getSchool: () => settings.current().school,
-          getJson: deps.neisGetJson || (async (url) => {
-            const res = await fetch(url, { signal: AbortSignal.timeout(1e4) });
-            if (!res.ok) throw new Error(`\uB098\uC774\uC2A4 \uC751\uB2F5 ${res.status}`);
-            try {
-              return await res.json();
-            } catch {
-              throw new Error("\uB098\uC774\uC2A4\uAC00 \uC9C0\uAE08 \uD559\uC0AC\uC77C\uC815\uC744 \uC8FC\uC9C0 \uC54A\uC544\uC694 (\uC810\uAC80 \uC911\uC77C \uC218 \uC788\uC5B4\uC694).");
-            }
-          })
+          getJson: deps.neisGetJson || neisGet
         }) : void 0);
         const school = createSchool(cfg, schoolDeps);
         const today = createToday(cfg, { ...deps.today, where: () => settings.where() });
@@ -4475,6 +4563,22 @@ data: ${snap}
           const b = req.body || {};
           return ttnotes.save({ date: b.date, period: b.period, body: b.body, rev: b.rev, subject: b.subject, klass: b.klass });
         });
+        {
+          on("GET", "/api/neis/timetable", async (req) => {
+            if (!opts.neisKey) throw new UserError2("\uC774 \uD310\uC5D0\uB294 \uB098\uC774\uC2A4 \uC5F0\uACB0\uC774 \uC5C6\uC5B4\uC694. [\uD45C \uBD99\uC5EC\uB123\uAE30]\uB098 \uD3B8\uC9D1\uC73C\uB85C \uB123\uC5B4 \uC8FC\uC138\uC694.");
+            const from = String(req.query.from || "");
+            const to = String(req.query.to || "");
+            const ok = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(`${d}T00:00:00Z`));
+            if (!ok(from) || !ok(to) || from > to || (Date.parse(to) - Date.parse(from)) / 864e5 > 14) throw new UserError2("\uAE30\uAC04\uC774 \uB9DE\uC9C0 \uC54A\uC544\uC694.");
+            const school2 = settings.current().school;
+            if (!school2) throw new UserError2("\uBA3C\uC800 [\uC124\uC815]\uC5D0\uC11C \uD559\uAD50\uB97C \uACE8\uB77C \uC8FC\uC138\uC694.");
+            try {
+              return await fetchTimetable({ key: opts.neisKey, school: school2, from, to, getJson: deps.neisGetJson || neisGet });
+            } catch (err) {
+              throw new UserError2(err.message || "\uB098\uC774\uC2A4 \uC2DC\uAC04\uD45C\uB97C \uC77D\uC9C0 \uBABB\uD588\uC5B4\uC694.");
+            }
+          });
+        }
         on("PUT", "/api/timetable/bells", (req) => timetable.setBells(req.body?.bells, req.body?.expectPeriods));
         async function handle(method, url, body) {
           let match = null;

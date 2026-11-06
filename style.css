@@ -994,3 +994,14 @@ body.docked .dock-card.drawer:hover { box-shadow: -8px 0 24px rgb(0 0 0 / .18); 
 .pip-more { font-size: 12px; color: var(--muted); padding-top: 4px; }
 #pip-open { margin-top: 0; }
 #pip-open[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+
+/* ---- 나이스에서 시간표 가져오기 (neistt.js) ---- */
+#tt-neis { width: min(720px, calc(100vw - 24px)); }
+.tt-neis h3 { margin: 12px 0 6px; font-size: 15px; }
+.neis-chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0; max-height: 220px; overflow-y: auto; }
+.neis-chip { margin: 0; padding: 4px 10px; font-size: 13px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--text); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.neis-chip[aria-pressed="true"], .neis-check:has(input:checked) { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.neis-check input { margin: 0; }
+.neis-group { margin: 6px 0; }
+.neis-group > strong { font-size: 13px; }
+#tt-neis-q { width: 100%; max-width: 260px; margin-bottom: 4px; }

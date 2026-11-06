@@ -126,6 +126,7 @@
     $('tt-edit').textContent = editing ? '편집 끝' : '편집';
     $('tt-bells-open').hidden = !editing;
     $('tt-bulk-open').hidden = !editing;
+    if ($('tt-neis-open')) $('tt-neis-open').hidden = !tt || (!editing && tt.base.length > 0);
     $('tt-copy-all').hidden = !editing;
     if (!editing) { setCopied(null); sel = null; }
     if (!tt) return;
@@ -236,7 +237,9 @@
     showActions();
     $('tt-hint').textContent = editing
       ? '칸을 한 번 누르면 골라지고, 두 번 누르거나 Enter면 고쳐요. 고른 칸에서 Ctrl+C·Ctrl+V 복사·붙이기, Delete 비우기, 방향키로 이동.'
-      : (tt.base.length ? '' : '편집을 눌러 기본 시간표를 넣어 주세요. 한 번 넣으면 매주 그대로 돌아요.');
+      : (tt.base.length ? '' : $('tt-neis-open')
+        ? '[나이스에서 가져오기]로 내 수업만 골라 넣거나, 편집을 눌러 직접 넣어 주세요. 한 번 넣으면 매주 그대로 돌아요.'
+        : '편집을 눌러 기본 시간표를 넣어 주세요. 한 번 넣으면 매주 그대로 돌아요.');
     tick();
   }
 
@@ -413,7 +416,16 @@
     bulkParsed = L.gridToCells(grid, tt.bells.periods.length);
     const keep = $('tt-bulk-keep').checked;
     const cells = bulkParsed.cells.filter((c) => c.lesson || !keep);
-    const box = $('tt-bulk-preview');
+    drawPreview($('tt-bulk-preview'), cells);
+    const n = cells.filter((c) => c.lesson).length;
+    $('tt-bulk-info').textContent = grid.length
+      ? `수업 ${n}칸${keep ? '' : `, 비우는 칸 ${cells.length - n}`}${bulkParsed.skipped ? ` · 넘쳐서 뺀 칸 ${bulkParsed.skipped}` : ''}`
+      : '엑셀·한글·나이스 시간표에서 표를 복사해 여기 붙여넣어 주세요.';
+    $('tt-bulk-save').disabled = cells.length === 0;
+  }
+  // 미리 보기 표 (월~금 × 교시). 나이스에서 가져오기(neistt.js)도 쓴다
+  function drawPreview(box, cells) {
+    const tt = state.data.timetable;
     box.textContent = '';
     box.style.gridTemplateRows = `auto repeat(${tt.bells.periods.length}, auto)`;
     box.append(el('div', ''));
@@ -432,12 +444,8 @@
         box.append(cell);
       }
     }
-    const n = cells.filter((c) => c.lesson).length;
-    $('tt-bulk-info').textContent = grid.length
-      ? `수업 ${n}칸${keep ? '' : `, 비우는 칸 ${cells.length - n}`}${bulkParsed.skipped ? ` · 넘쳐서 뺀 칸 ${bulkParsed.skipped}` : ''}`
-      : '엑셀·한글·나이스 시간표에서 표를 복사해 여기 붙여넣어 주세요.';
-    $('tt-bulk-save').disabled = cells.length === 0;
   }
+  window.Dash.ttPreview = drawPreview;
   $('tt-bulk-open').addEventListener('click', () => {
     $('tt-bulk-text').value = '';
     $('tt-bulk-msg').textContent = '';
