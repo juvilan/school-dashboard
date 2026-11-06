@@ -971,3 +971,26 @@ body.docked .strip.tiles .strip-item { font-size: inherit; }
 body.dock-snap .dock-card { transition: none !important; }
 body.docked .dock-card.drawer { border-radius: 0; }
 body.docked .dock-card.drawer:hover { box-shadow: -8px 0 24px rgb(0 0 0 / .18); }
+
+/* ---- 항상 위 작은 창 (pip.js) ---- */
+.pip-body { margin: 0; padding: 10px 12px; background: var(--bg); color: var(--text); font-size: 14px; overflow-y: auto; }
+.pip-head { display: flex; align-items: baseline; gap: 8px; }
+.pip-clock { font-size: 26px; font-variant-numeric: tabular-nums; letter-spacing: .5px; }
+.pip-date { color: var(--muted); font-size: 13px; }
+.pip-now { margin: 6px 0 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-weight: 600; line-height: 1.35; }
+.pip-now.on { border-color: var(--accent); }
+.pip-bar { margin-top: 6px; height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.pip-bar i { display: block; height: 100%; background: var(--accent); }
+.pip-day { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.pip-l { font-size: 12px; padding: 2px 7px; border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; }
+.pip-l b { color: var(--muted); font-weight: 600; }
+.pip-l.past { opacity: .45; }
+.pip-l.cur { border-color: var(--accent); color: var(--accent); }
+.pip-sub { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 2px; }
+.pip-todo { margin: 0; display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.pip-todo span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pip-todo em { font-style: normal; font-size: 11px; color: var(--bad); }
+.pip-todo input { margin: 0; }
+.pip-more { font-size: 12px; color: var(--muted); padding-top: 4px; }
+#pip-open { margin-top: 0; }
+#pip-open[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }

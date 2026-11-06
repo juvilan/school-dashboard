@@ -6,12 +6,12 @@
   <meta name="referrer" content="no-referrer-when-downgrade">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>학교 대시보드</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=0.1.0-47d078ea62">
-  <link rel="icon" href="./icon.svg?v=0.1.0-47d078ea62" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest?v=0.1.0-104f428233">
+  <link rel="icon" href="./icon.svg?v=0.1.0-104f428233" type="image/svg+xml">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#181b21">
   
-  <link rel="stylesheet" href="./style.css?v=0.1.0-47d078ea62">
+  <link rel="stylesheet" href="./style.css?v=0.1.0-104f428233">
 </head>
 <body data-edition="teacher" data-host="web">
   <header class="top">
@@ -28,6 +28,7 @@
       <span id="w-install" class="ln-hint" role="status" hidden><span id="w-install-text">설치해서 쓰면 프로그램처럼 따로 열려요.</span> <button id="w-install-btn" type="button" class="small-btn">앱으로 설치</button> <button id="w-install-x" type="button" class="ghost small-btn x" aria-label="닫기">×</button></span>
     </nav>
     <span class="spacer"></span>
+    <button id="pip-open" class="ghost small-btn" type="button" aria-pressed="false" title="다른 프로그램 위에 항상 떠 있는 작은 창 (지금 교시·할 일)" hidden>📌 작은 창</button>
     <span id="conn" class="conn" data-state="connecting" title="실시간 연결 상태">연결 중…</span>
     
     <button id="t-open" class="ghost" type="button">설정</button>
@@ -341,7 +342,7 @@
       </section>
       <section id="t-half">
         <h3>모니터 하나로 쓸 때</h3>
-        <p class="small muted">대시보드 창을 누른 채 <kbd>윈도우 키</kbd> + <kbd>←</kbd>(또는 <kbd>→</kbd>)를 누르면 화면 반쪽에 붙어요. 창이 좁아지면 시간표·달력만 크게 남고, 나머지 칸은 오른쪽 세로 버튼을 눌러 꺼내 써요. 창을 다시 넓히면 모두 펼쳐져요.</p>
+        <p class="small muted">대시보드 창을 누른 채 <kbd>윈도우 키</kbd> + <kbd>←</kbd>(또는 <kbd>→</kbd>)를 누르면 화면 반쪽에 붙어요. 창이 좁아지면 시간표·달력만 크게 남고, 나머지 칸은 오른쪽 세로 버튼을 눌러 꺼내 써요. 창을 다시 넓히면 모두 펼쳐져요.<br>대시보드를 아예 뒤로 두고 일할 때는 위쪽 [📌 작은 창]을 누르면 지금 교시·할 일이 다른 프로그램 위에 작게 떠 있어요 (크롬·엣지).</p>
       </section>
       <section>
         <h3>자료 보관</h3>
@@ -397,26 +398,27 @@
   
 
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script src="./local.js?v=0.1.0-47d078ea62"></script>
-  <script src="./cards/calendar-logic.js?v=0.1.0-47d078ea62"></script>
-  <script src="./app.js?v=0.1.0-47d078ea62"></script>
+  <script src="./local.js?v=0.1.0-104f428233"></script>
+  <script src="./cards/calendar-logic.js?v=0.1.0-104f428233"></script>
+  <script src="./app.js?v=0.1.0-104f428233"></script>
   
-  <script src="./cards/ui.js?v=0.1.0-47d078ea62"></script>
-  <script src="./cards/today.js?v=0.1.0-47d078ea62"></script>
-  <script src="./cards/calendar.js?v=0.1.0-47d078ea62"></script>
-  <script src="./cards/timetable-logic.js?v=0.1.0-47d078ea62"></script>
-  <script src="./cards/timetable.js?v=0.1.0-47d078ea62"></script>
-  <script src="./cards/ttnote.js?v=0.1.0-47d078ea62"></script>
-  <script src="./cards/gcal.js?v=0.1.0-47d078ea62"></script>
-  <script src="./cards/clip.js?v=0.1.0-47d078ea62"></script>
+  <script src="./cards/ui.js?v=0.1.0-104f428233"></script>
+  <script src="./cards/today.js?v=0.1.0-104f428233"></script>
+  <script src="./cards/calendar.js?v=0.1.0-104f428233"></script>
+  <script src="./cards/timetable-logic.js?v=0.1.0-104f428233"></script>
+  <script src="./cards/timetable.js?v=0.1.0-104f428233"></script>
+  <script src="./cards/ttnote.js?v=0.1.0-104f428233"></script>
+  <script src="./cards/gcal.js?v=0.1.0-104f428233"></script>
+  <script src="./cards/clip.js?v=0.1.0-104f428233"></script>
   
-  <script src="./cards/sticky.js?v=0.1.0-47d078ea62"></script>
+  <script src="./cards/sticky.js?v=0.1.0-104f428233"></script>
   
-  <script src="./cards/ai.js?v=0.1.0-47d078ea62"></script>
-  <script src="./cards/drive.js?v=0.1.0-47d078ea62"></script>
-  <script src="./cards/golinks.js?v=0.1.0-47d078ea62"></script>
-  <script src="./cards/fold.js?v=0.1.0-47d078ea62"></script>
-  <script src="./cards/dock.js?v=0.1.0-47d078ea62"></script>
-  <script src="./cards/teacher.js?v=0.1.0-47d078ea62"></script>
+  <script src="./cards/ai.js?v=0.1.0-104f428233"></script>
+  <script src="./cards/drive.js?v=0.1.0-104f428233"></script>
+  <script src="./cards/golinks.js?v=0.1.0-104f428233"></script>
+  <script src="./cards/fold.js?v=0.1.0-104f428233"></script>
+  <script src="./cards/pip.js?v=0.1.0-104f428233"></script>
+  <script src="./cards/dock.js?v=0.1.0-104f428233"></script>
+  <script src="./cards/teacher.js?v=0.1.0-104f428233"></script>
 </body>
 </html>

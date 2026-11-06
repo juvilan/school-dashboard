@@ -263,6 +263,17 @@
     strip.classList.toggle('muted', !lessons.length);
   }
 
+  // 작은 창(pip.js)이 쓰는 지금 상태: 오늘 수업 목록과 띠 문구 (학사일정의 쉬는 날이면 수업 없음)
+  window.Dash.ttNow = () => {
+    const tt = state.data.timetable;
+    if (!tt) return null;
+    const n = seoul();
+    const m = Math.floor(n.minutes);
+    const lessons = n.weekday >= 1 && n.weekday <= 5 && !isOffDay(n.ymd) ? L.dayLessons(tt, n.ymd, n.weekday) : [];
+    const st = L.nowStatus(tt, lessons, m);
+    return { lessons, st, minutes: n.minutes, text: tt.base.length || tt.overrides.length ? L.stripText(st) : '시간표 입력 전' };
+  };
+
   // ---- 칸 고치기 ----
   function openCell(date, weekday, period) {
     const tt = state.data.timetable;
