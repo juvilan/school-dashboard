@@ -10,6 +10,8 @@
     togglers(d.id).forEach((b) => b.setAttribute('aria-expanded', String(open)));
   };
   const drawer = {
+    // 서랍이 아닌 것은 건드리지 않는다 (반쪽 화면에서만 서랍이 되는 칸이 있음)
+    sync(d) { if (d?.classList.contains('drawer')) sync(d); },
     open(id) {
       const d = document.getElementById(id);
       if (!d) return;
@@ -40,11 +42,11 @@
   });
   // 바깥을 누르면 닫힘 (서랍 안·여는 버튼·창(dialog)은 빼고)
   document.addEventListener('pointerdown', (e) => {
-    if (e.target.closest?.('.drawer, [data-drawer], dialog')) return;
+    if (e.target.closest?.('.drawer, [data-drawer], dialog, .picker-dialog, .picker-dialog-bg')) return; // 구글 파일 고르기 창도 안쪽으로 침
     document.querySelectorAll('.drawer.open').forEach((d) => drawer.close(d.id));
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape' || document.querySelector('dialog[open]')) return;
+    if (e.key !== 'Escape' || e.isComposing || document.querySelector('dialog[open]')) return; // 한글 조합 중 Esc 는 조합만 취소
     document.querySelectorAll('.drawer.open').forEach((d) => drawer.close(d.id));
   });
 

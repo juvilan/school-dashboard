@@ -932,3 +932,42 @@ dialog:not([open])::backdrop { background: rgb(0 0 0 / 0); }
 #sp-open .sp-logo{display:block}
 .fd-box { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
 .fd-box h3 { margin: 0 0 4px; font-size: 15px; }
+
+/* ---- 반쪽 화면(배포판, PC 창 너비 560~1199px): dock.js 가 body.docked 를 붙인다 ----
+   시간표·달력만 크게 (넓으면 나란히, 좁으면 위아래), 클립보드·포스트잇·AI·드라이브는 오른쪽 버튼줄의 서랍으로 */
+.dock-rail { display: none; }
+.dock-x { display: none; }
+body.docked { --rail-w: 64px; padding-right: var(--rail-w); }
+body.docked .dock-rail {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 51; width: var(--rail-w);
+  display: flex; flex-direction: column; align-items: stretch; justify-content: center; gap: 6px; padding: 8px 6px;
+  background: var(--card); border-left: 1px solid var(--line);
+}
+body.docked .dock-rail[hidden] { display: none; }
+.dock-btn {
+  margin: 0; padding: 8px 2px 6px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: transparent; color: var(--text); border: 1px solid transparent; border-radius: 10px; font-size: 11.5px; line-height: 1.2;
+}
+.dock-btn[hidden] { display: none; }
+.dock-btn:hover { border-color: var(--line); }
+.dock-btn[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.dock-ico { font-size: 20px; line-height: 1; }
+body.docked .drawer { right: var(--rail-w); }
+body.docked .dock-card.drawer { width: min(440px, calc(100vw - var(--rail-w) - 24px)); }
+body.docked .dock-card .dock-x { display: inline-block; margin-left: auto; }
+body.docked .dock-card .fold-mark { display: none; }
+body.docked .dock-card .fold-btn { cursor: default; }
+/* 배포판은 달력이 가운데 기둥(col-main)에 있다. 오른쪽 기둥의 칸들은 모두 서랍이 되므로 자리를 비운다 */
+body.docked .layout { grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); grid-template-areas: "left main"; }
+body.docked .col-right { display: contents; }
+body.docked #drive-list { max-height: none; }
+body.docked .dock-card .clip-list, body.docked .dock-card .sticky-list { max-height: none; }
+/* 맨 위 오늘 줄(날짜·날씨·급식)은 넓은 화면처럼 한 줄로 */
+body.docked .strip.tiles { display: flex; }
+body.docked .strip.tiles .strip-date { flex-direction: column; }
+body.docked .strip.tiles .strip-item { font-size: inherit; }
+@media (max-width: 899px) { body.docked .layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "left" "main"; } }
+@media (prefers-reduced-motion: reduce) { .dock-btn { transition: none; } }
+body.dock-snap .dock-card { transition: none !important; }
+body.docked .dock-card.drawer { border-radius: 0; }
+body.docked .dock-card.drawer:hover { box-shadow: -8px 0 24px rgb(0 0 0 / .18); }

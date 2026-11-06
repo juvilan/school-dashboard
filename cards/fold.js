@@ -7,6 +7,9 @@
   try { folded = new Set(JSON.parse(localStorage.getItem(KEY)) ?? DEFAULT); } catch { folded = new Set(DEFAULT); }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify([...folded])); } catch { /* 저장 안 돼도 됨 */ } };
 
+  const applies = [];
+  window.Dash = window.Dash || {};
+  window.Dash.refold = () => applies.forEach((f) => f());
   for (const id of CARDS) {
     const card = document.getElementById(id);
     const h2 = card?.querySelector('.card-head h2');
@@ -18,12 +21,17 @@
     h2.textContent = '';
     h2.append(btn);
     const apply = () => {
-      const on = folded.has(id);
+      // 반쪽 화면에서 서랍이 된 칸은 접지 않는다 (꺼냈는데 비어 보이지 않게)
+      const docked = card.classList.contains('dock-card');
+      const on = folded.has(id) && !docked;
+      btn.tabIndex = docked ? -1 : 0; // 서랍 안에서는 접기 버튼이 아님
       card.classList.toggle('folded', on);
       btn.setAttribute('aria-expanded', String(!on));
       btn.title = on ? '펼치기' : '접기';
     };
+    applies.push(apply);
     btn.addEventListener('click', () => {
+      if (card.classList.contains('dock-card')) return;
       if (folded.has(id)) folded.delete(id); else folded.add(id);
       save();
       apply();
