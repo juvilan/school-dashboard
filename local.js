@@ -4767,17 +4767,64 @@ data: ${snap}
   var { localDate } = require_today();
   var SQLJS_VERSION = require_package().version;
   var GOOGLE_CLIENT_ID = true ? "768383967666-motbdbd8334fvj06pe02cjn79aqjm4an.apps.googleusercontent.com" : "";
-  var GOOGLE_API_KEY = true ? "AIzaSyCN1KSMKUwi5fEQ5UtZpFBmCPJwBzblSQA" : "";
   var NEIS_KEY = true ? "0240d4554c154347bafb6c95c26e202d" : "";
   var nativeFetch = window.fetch.bind(window);
+  var BASE_SITE = "school-dashboard";
+  var SITE_ID = "school-dashboard" ? "school-dashboard" : BASE_SITE;
   var kv = /* @__PURE__ */ (() => {
     let dbp = null;
-    const open = () => dbp ||= new Promise((resolve, reject) => {
-      const r = indexedDB.open("school-dashboard", 1);
+    const openDb = (name) => new Promise((resolve, reject) => {
+      const r = indexedDB.open(name, 1);
       r.onupgradeneeded = () => r.result.createObjectStore("kv");
       r.onsuccess = () => resolve(r.result);
       r.onerror = () => reject(r.error);
     });
+    const all = (db) => new Promise((resolve, reject) => {
+      const t = db.transaction("kv", "readonly");
+      const s = t.objectStore("kv");
+      const out = {};
+      const ks = s.getAllKeys();
+      const vs = s.getAll();
+      t.oncomplete = () => {
+        ks.result.forEach((k, i) => {
+          out[k] = vs.result[i];
+        });
+        resolve(out);
+      };
+      t.onerror = () => reject(t.error);
+    });
+    async function adopt(db) {
+      try {
+        const has = await new Promise((resolve, reject) => {
+          const t = db.transaction("kv", "readonly");
+          const ks = t.objectStore("kv").getAllKeys();
+          t.oncomplete = () => resolve(new Set(ks.result));
+          t.onerror = () => reject(t.error);
+        });
+        if (has.has("db") || has.has("adopted")) return;
+        const list = await indexedDB.databases?.();
+        if (!list || !list.some((d) => d.name === BASE_SITE)) return;
+        const src = await openDb(BASE_SITE);
+        const data = await all(src);
+        src.close();
+        delete data.lastBackup;
+        if (!data.db) return;
+        await new Promise((resolve, reject) => {
+          const t = db.transaction("kv", "readwrite");
+          const s = t.objectStore("kv");
+          for (const [k, v] of Object.entries(data)) s.put(v, k);
+          s.put(Date.now(), "adopted");
+          t.oncomplete = resolve;
+          t.onerror = () => reject(t.error);
+        });
+      } catch {
+      }
+    }
+    const open = () => dbp ||= (async () => {
+      const db = await openDb(SITE_ID);
+      if (SITE_ID !== BASE_SITE) await adopt(db);
+      return db;
+    })();
     const run = async (mode, fn) => {
       const db = await open();
       return new Promise((resolve, reject) => {
@@ -4853,7 +4900,6 @@ data: ${snap}
       },
       async revoke() {
         gen += 1;
-        window.DashDrive?.forget();
         const t = valid() ? token.value : null;
         token = null;
         keep(null);
@@ -4879,7 +4925,7 @@ data: ${snap}
             client_id: clientId,
             scope: SCOPES.join(" "),
             include_granted_scopes: false,
-            // 드라이브 권한을 캘린더 열쇠에 섞지 않음
+            // 캘린더 권한만
             prompt: st.linked ? "" : "consent",
             // 한 번 허용했으면 다음부터는 창이 잠깐 떴다 닫힌다
             login_hint: st.email || void 0,
@@ -4980,7 +5026,7 @@ data: ${snap}
     if (!navigator.locks) return true;
     for (let i = 0; i < 10; i += 1) {
       const got = await new Promise((resolve) => {
-        navigator.locks.request("school-dashboard-db", { ifAvailable: true }, (lock) => {
+        navigator.locks.request(`${SITE_ID}-db`, { ifAvailable: true }, (lock) => {
           resolve(Boolean(lock));
           return lock ? new Promise(() => {
           }) : void 0;
@@ -5009,135 +5055,6 @@ data: ${snap}
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", show);
     else show();
   }
-  function createDriveWeb() {
-    const SCOPE = "https://www.googleapis.com/auth/drive.file";
-    const APP_ID = GOOGLE_CLIENT_ID.split("-")[0];
-    let token = null;
-    const valid = () => Boolean(token && token.exp - 6e4 > Date.now());
-    const drop = (value) => {
-      if (!value || token?.value === value) token = null;
-    };
-    let asking = null;
-    function getToken() {
-      if (valid()) return Promise.resolve(token.value);
-      if (asking) return asking;
-      let timer;
-      asking = new Promise((resolve, reject) => {
-        timer = setTimeout(() => reject(new Error("\uAD6C\uAE00 \uB85C\uADF8\uC778 \uB2F5\uC744 \uBC1B\uC9C0 \uBABB\uD588\uC5B4\uC694. \uB2E4\uC2DC \uB20C\uB7EC \uC8FC\uC138\uC694.")), 12e4);
-        const oauth = window.google?.accounts?.oauth2;
-        if (!oauth) return reject(new Error("\uAD6C\uAE00 \uB85C\uADF8\uC778 \uB3C4\uAD6C\uB97C \uC544\uC9C1 \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC5B4\uC694. \uC7A0\uC2DC \uB4A4 \uB2E4\uC2DC \uB20C\uB7EC \uC8FC\uC138\uC694."));
-        let hint;
-        try {
-          hint = google?.email() || void 0;
-        } catch {
-        }
-        const client = oauth.initTokenClient({
-          client_id: GOOGLE_CLIENT_ID,
-          scope: SCOPE,
-          include_granted_scopes: false,
-          // 캘린더 권한을 이 열쇠에 섞지 않음
-          login_hint: hint,
-          callback: (r) => {
-            if (r.error) return reject(new Error(r.error === "access_denied" ? "\uAD6C\uAE00\uC5D0\uC11C \uD5C8\uC6A9\uD558\uC9C0 \uC54A\uC558\uC5B4\uC694." : `\uAD6C\uAE00 \uC624\uB958: ${r.error}`));
-            if (!oauth.hasGrantedAllScopes(r, SCOPE)) return reject(new Error('"\uACE0\uB978 \uD30C\uC77C \uBCF4\uAE30" \uAD8C\uD55C\uC744 \uCCB4\uD06C\uD574\uC11C \uD5C8\uC6A9\uD574 \uC8FC\uC138\uC694.'));
-            token = { value: r.access_token, exp: Date.now() + (Number(r.expires_in) || 3600) * 1e3 };
-            resolve(token.value);
-          },
-          error_callback: (e) => reject(new Error(e?.type === "popup_closed" ? "\uAD6C\uAE00 \uB85C\uADF8\uC778 \uCC3D\uC744 \uB2EB\uC558\uC5B4\uC694." : e?.type === "popup_failed_to_open" ? "\uD31D\uC5C5\uC774 \uB9C9\uD614\uC5B4\uC694. \uC8FC\uC18C\uCC3D \uC624\uB978\uCABD\uC5D0\uC11C \uD31D\uC5C5\uC744 \uD5C8\uC6A9\uD574 \uC8FC\uC138\uC694." : "\uAD6C\uAE00 \uB85C\uADF8\uC778\uC744 \uB9C8\uCE58\uC9C0 \uBABB\uD588\uC5B4\uC694."))
-        });
-        client.requestAccessToken();
-      }).finally(() => {
-        clearTimeout(timer);
-        asking = null;
-      });
-      return asking;
-    }
-    let pickerLoad = null;
-    function loadPicker() {
-      if (window.google?.picker) return Promise.resolve();
-      pickerLoad ||= new Promise((resolve, reject) => {
-        const fail = () => {
-          pickerLoad = null;
-          reject(new Error("\uAD6C\uAE00 \uD30C\uC77C \uACE0\uB974\uAE30 \uCC3D\uC744 \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC5B4\uC694. \uC778\uD130\uB137 \uC5F0\uACB0\uC744 \uD655\uC778\uD574 \uC8FC\uC138\uC694."));
-        };
-        const go = () => window.gapi.load("picker", { callback: resolve, onerror: fail, timeout: 15e3, ontimeout: fail });
-        if (window.gapi) return go();
-        const sc = document.createElement("script");
-        sc.src = "https://apis.google.com/js/api.js";
-        sc.onload = go;
-        sc.onerror = fail;
-        document.head.append(sc);
-      });
-      return pickerLoad;
-    }
-    async function pick() {
-      const t = await getToken();
-      await loadPicker();
-      const P = window.google.picker;
-      return new Promise((resolve) => {
-        const mine = new P.DocsView(P.ViewId.DOCS).setIncludeFolders(true).setParent("root").setMode(P.DocsViewMode.LIST).setLabel("\uB0B4 \uB4DC\uB77C\uC774\uBE0C");
-        const drives = new P.DocsView(P.ViewId.DOCS).setEnableDrives(true).setIncludeFolders(true).setMode(P.DocsViewMode.LIST).setLabel("\uACF5\uC720 \uB4DC\uB77C\uC774\uBE0C");
-        const shared = new P.DocsView(P.ViewId.DOCS).setOwnedByMe(false).setIncludeFolders(true).setMode(P.DocsViewMode.LIST).setLabel("\uACF5\uC720 \uBB38\uC11C\uD568");
-        new P.PickerBuilder().addView(mine).addView(shared).addView(drives).setOAuthToken(t).setDeveloperKey(GOOGLE_API_KEY).setAppId(APP_ID).setLocale("ko").setOrigin(location.origin).enableFeature(P.Feature.MULTISELECT_ENABLED).enableFeature(P.Feature.SUPPORT_DRIVES).setTitle("\uB300\uC2DC\uBCF4\uB4DC\uB85C \uAC00\uC838\uC62C \uD30C\uC77C \uACE0\uB974\uAE30").setCallback((d) => {
-          if (d[P.Response.ACTION] === P.Action.PICKED) {
-            resolve((d[P.Response.DOCUMENTS] || []).map((x) => ({
-              id: String(x[P.Document.ID]),
-              name: String(x[P.Document.NAME] || "\uC774\uB984 \uC5C6\uC74C"),
-              mimeType: String(x[P.Document.MIME_TYPE] || ""),
-              url: String(x[P.Document.URL] || ""),
-              iconUrl: String(x[P.Document.ICON_URL] || "")
-            })));
-          } else if (d[P.Response.ACTION] === P.Action.CANCEL) resolve([]);
-          else if (d[P.Response.ACTION] === "error") {
-            drop(t);
-            resolve([]);
-          } else if (d[P.Response.ACTION] !== P.Action.LOADED) resolve([]);
-        }).build().setVisible(true);
-      });
-    }
-    const EXPORT = {
-      "application/vnd.google-apps.document": ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx"],
-      "application/vnd.google-apps.spreadsheet": ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx"],
-      "application/vnd.google-apps.presentation": ["application/vnd.openxmlformats-officedocument.presentationml.presentation", ".pptx"],
-      "application/vnd.google-apps.drawing": ["application/pdf", ".pdf"]
-    };
-    const canDownload = (mime) => !mime.startsWith("application/vnd.google-apps.") || Boolean(EXPORT[mime]);
-    async function download(file) {
-      const ex = EXPORT[file.mimeType];
-      if (!canDownload(file.mimeType)) throw new Error("\uC774 \uC885\uB958(\uD3F4\uB354\xB7\uC124\uBB38 \uB4F1)\uB294 \uBC1B\uC744 \uC218 \uC5C6\uC5B4\uC694. [\uC5F4\uAE30]\uB85C \uC5EC\uC138\uC694.");
-      const id = encodeURIComponent(file.id);
-      const url = ex ? `https://www.googleapis.com/drive/v3/files/${id}/export?mimeType=${encodeURIComponent(ex[0])}` : `https://www.googleapis.com/drive/v3/files/${id}?alt=media&supportsAllDrives=true`;
-      const t = await getToken();
-      const res = await nativeFetch(url, { headers: { Authorization: `Bearer ${t}` } });
-      if (res.status === 401) {
-        drop(t);
-        throw new Error("\uAD6C\uAE00 \uB85C\uADF8\uC778 \uC2DC\uAC04\uC774 \uB05D\uB0AC\uC5B4\uC694. [\uBC1B\uAE30]\uB97C \uD55C \uBC88 \uB354 \uB20C\uB7EC \uC8FC\uC138\uC694.");
-      }
-      if (Number(res.headers.get("content-length")) > 500 * 1024 * 1024) throw new Error("\uD30C\uC77C\uC774 \uB108\uBB34 \uCEE4\uC694 (500MB \uB118\uC74C). \uC774\uB984\uC744 \uB20C\uB7EC \uB4DC\uB77C\uC774\uBE0C\uC5D0\uC11C \uBC1B\uC544 \uC8FC\uC138\uC694.");
-      if (res.status === 403 || res.status === 404) throw new Error("\uC774 \uD30C\uC77C\uC5D0 \uC811\uADFC\uD560 \uC218 \uC5C6\uC5B4\uC694. [\uD30C\uC77C \uACE0\uB974\uAE30]\uC5D0\uC11C \uB2E4\uC2DC \uACE8\uB77C \uC8FC\uC138\uC694. (\uAD6C\uAE00 \uBB38\uC11C\uB294 10MB \uB118\uC73C\uBA74 \uBC14\uAFD4 \uBC1B\uC744 \uC218 \uC5C6\uC5B4\uC694)");
-      if (!res.ok) throw new Error(`\uBC1B\uC9C0 \uBABB\uD588\uC5B4\uC694. (${res.status})`);
-      const blob = await res.blob();
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      let nm = String(file.name || "drive-file").normalize("NFC").trim().replace(/[<>:"/\\|?*~\u0000-\u001f\u007f\p{Cf}]/gu, "_");
-      if (ex && !nm.toLowerCase().endsWith(ex[1])) nm += ex[1];
-      const dot = nm.lastIndexOf(".");
-      const ext = dot > 0 && nm.length - dot <= 6 ? nm.slice(dot) : "";
-      const tidy = (x) => x.replace(/^[.\s]+/, "").replace(/[.\s]+$/, "");
-      let stem = tidy(Array.from(tidy(ext ? nm.slice(0, dot) : nm)).slice(0, 120).join("")) || "drive-file";
-      if (/^(con|prn|aux|nul|com\d|lpt\d)$/i.test(stem)) stem = `_${stem}`;
-      a.download = stem + ext;
-      document.body.append(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 6e4);
-      return a.download;
-    }
-    return { configured: () => Boolean(GOOGLE_CLIENT_ID && GOOGLE_API_KEY), pick, download, canDownload, forget() {
-      token = null;
-    } };
-  }
-  window.DashDrive = createDriveWeb();
   var google = null;
   var SQLmod = null;
   var ready = (async () => {

@@ -42,7 +42,7 @@
   });
   // 바깥을 누르면 닫힘 (서랍 안·여는 버튼·창(dialog)은 빼고)
   document.addEventListener('pointerdown', (e) => {
-    if (e.target.closest?.('.drawer, [data-drawer], dialog, .picker-dialog, .picker-dialog-bg')) return; // 구글 파일 고르기 창도 안쪽으로 침
+    if (e.target.closest?.('.drawer, [data-drawer], dialog')) return;
     document.querySelectorAll('.drawer.open').forEach((d) => drawer.close(d.id));
   });
   document.addEventListener('keydown', (e) => {

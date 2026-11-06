@@ -1,5 +1,5 @@
 // 반쪽 화면(배포판, PC): 창이 좁으면 시간표·달력만 크게 두고
-// 클립보드·포스트잇·AI·드라이브는 오른쪽 세로 버튼줄을 눌러 서랍으로 꺼내 쓴다.
+// 바로가기·클립보드·포스트잇·AI는 오른쪽 세로 버튼줄을 눌러 서랍으로 꺼내 쓴다.
 // 모니터 하나에서 창을 반으로 붙여(윈도우 키 + ←/→) 쓰는 선생님용. 창을 넓히면 원래대로 다 펼쳐진다.
 (() => {
   if (window.Dash?.edition !== 'teacher' || !window.Dash.drawer) return;
@@ -7,10 +7,10 @@
   // 휴대폰(손가락)은 지금처럼 한 줄로 쌓는다. 마우스 쓰는 PC 에서 창이 좁을 때만
   const mq = matchMedia('(max-width: 1199px) and (min-width: 560px) and (hover: hover) and (pointer: fine)');
   const ITEMS = [
+    ['card-go', '🔗', '바로가기'],
     ['card-clip', '📋', '클립보드'],
     ['card-sticky', '🗒️', '포스트잇'],
     ['card-ai', '💬', 'AI'],
-    ['card-drive', '📂', '드라이브'],
   ].filter(([id]) => $(id));
 
   const rail = document.createElement('nav');
@@ -53,7 +53,7 @@
   }
   document.body.append(rail);
 
-  // 숨겨진 칸(드라이브 연결 전, AI 끔 등)은 버튼도 숨긴다
+  // 숨겨진 칸(AI 끔 등)은 버튼도 숨긴다
   const showBtns = () => { for (const [id, b] of btns) b.hidden = $(id).hidden; };
   const mo = new MutationObserver(() => {
     showBtns();

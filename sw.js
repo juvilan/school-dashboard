@@ -1,14 +1,17 @@
 // 웹판 오프라인: 화면 파일을 담아 두고 먼저 쓴다. 새 판이 올라오면 다음에 열 때 바뀐다.
-const VERSION = '0.1.0-c1f41a64a9';
-const FILES = ["./","./ai/helper.ps1","./ai/open.ps1","./ai/pc.ps1","./ai/setup.ps1","./app.js?v=0.1.0-c1f41a64a9","./cards/ai.js?v=0.1.0-c1f41a64a9","./cards/calendar-logic.js?v=0.1.0-c1f41a64a9","./cards/calendar.js?v=0.1.0-c1f41a64a9","./cards/clip.js?v=0.1.0-c1f41a64a9","./cards/dock.js?v=0.1.0-c1f41a64a9","./cards/drive.js?v=0.1.0-c1f41a64a9","./cards/fold.js?v=0.1.0-c1f41a64a9","./cards/gcal.js?v=0.1.0-c1f41a64a9","./cards/golinks.js?v=0.1.0-c1f41a64a9","./cards/neistt-logic.js?v=0.1.0-c1f41a64a9","./cards/neistt.js?v=0.1.0-c1f41a64a9","./cards/pip.js?v=0.1.0-c1f41a64a9","./cards/sticky.js?v=0.1.0-c1f41a64a9","./cards/teacher.js?v=0.1.0-c1f41a64a9","./cards/timetable-logic.js?v=0.1.0-c1f41a64a9","./cards/timetable.js?v=0.1.0-c1f41a64a9","./cards/today.js?v=0.1.0-c1f41a64a9","./cards/ttnote.js?v=0.1.0-c1f41a64a9","./cards/ui.js?v=0.1.0-c1f41a64a9","./icon-192.png","./icon-512.png","./icon.svg?v=0.1.0-c1f41a64a9","./local.js?v=0.1.0-c1f41a64a9","./manifest.webmanifest?v=0.1.0-c1f41a64a9","./sql-wasm.wasm?v=1.13.0","./style.css?v=0.1.0-c1f41a64a9"];
-const CACHE = `school-dashboard-${VERSION}`;
+const VERSION = '0.1.0-c3d865d24e';
+const FILES = ["./","./ai/helper.ps1","./ai/open.ps1","./ai/pc.ps1","./ai/setup.ps1","./app.js?v=0.1.0-c3d865d24e","./cards/ai.js?v=0.1.0-c3d865d24e","./cards/calendar-logic.js?v=0.1.0-c3d865d24e","./cards/calendar.js?v=0.1.0-c3d865d24e","./cards/clip.js?v=0.1.0-c3d865d24e","./cards/dock.js?v=0.1.0-c3d865d24e","./cards/fold.js?v=0.1.0-c3d865d24e","./cards/gcal.js?v=0.1.0-c3d865d24e","./cards/golinks.js?v=0.1.0-c3d865d24e","./cards/neistt-logic.js?v=0.1.0-c3d865d24e","./cards/neistt.js?v=0.1.0-c3d865d24e","./cards/pip.js?v=0.1.0-c3d865d24e","./cards/schooltt.js?v=0.1.0-c3d865d24e","./cards/sticky.js?v=0.1.0-c3d865d24e","./cards/teacher.js?v=0.1.0-c3d865d24e","./cards/timetable-logic.js?v=0.1.0-c3d865d24e","./cards/timetable.js?v=0.1.0-c3d865d24e","./cards/today.js?v=0.1.0-c3d865d24e","./cards/ttnote.js?v=0.1.0-c3d865d24e","./cards/ui.js?v=0.1.0-c3d865d24e","./icon-192.png","./icon-512.png","./icon.svg?v=0.1.0-c3d865d24e","./local.js?v=0.1.0-c3d865d24e","./manifest.webmanifest?v=0.1.0-c3d865d24e","./sql-wasm.wasm?v=1.13.0","./style.css?v=0.1.0-c3d865d24e"];
+// 같은 github.io 주소 아래 범용판·학교 특별판이 서로의 저장분을 지우지 않게 사이트마다 이름을 나눈다
+const SITE = 'school-dashboard';
+const CACHE = `${SITE}@${VERSION}`;
+const mine = (k) => k.startsWith(`${SITE}@`) || (SITE === 'school-dashboard' && /^school-dashboard-\d/.test(k)); // 뒤: 예전 이름
 
 self.addEventListener('install', (e) => {
   // 브라우저 HTTP 기억(Pages 는 10분)을 거치지 않고 새로 받는다
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k.startsWith('school-dashboard-') && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => mine(k) && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);

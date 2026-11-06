@@ -6,6 +6,8 @@
   const L = window.TimetableLogic;
   const C = window.CalendarLogic;
   const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+  // 학교 특별판이면 "영일고 2026학년도 2학기" 같은 이름 (schooltt.js)
+  const schoolTt = document.querySelector('meta[name="school-tt"]')?.content || '';
 
   const todayDate = () => C.fromYmd(seoul().ymd); // 서울 기준 오늘 (달력 계산용 날짜)
   let monday = L.weekMonday(todayDate());
@@ -127,6 +129,7 @@
     $('tt-bells-open').hidden = !editing;
     $('tt-bulk-open').hidden = !editing;
     if ($('tt-neis-open')) $('tt-neis-open').hidden = !tt || (!editing && tt.base.length > 0);
+    if ($('tt-school-open')) $('tt-school-open').hidden = !tt || !schoolTt || !window.Dash.schoolTtReady || (!editing && tt.base.length > 0);
     $('tt-copy-all').hidden = !editing;
     if (!editing) { setCopied(null); sel = null; }
     if (!tt) return;
@@ -237,7 +240,9 @@
     showActions();
     $('tt-hint').textContent = editing
       ? '칸을 한 번 누르면 골라지고, 두 번 누르거나 Enter면 고쳐요. 고른 칸에서 Ctrl+C·Ctrl+V 복사·붙이기, Delete 비우기, 방향키로 이동.'
-      : (tt.base.length ? '' : $('tt-neis-open')
+      : (tt.base.length ? '' : schoolTt && window.Dash.schoolTtReady
+        ? `[학교 시간표에서 가져오기]에 이름과 나이스 개인번호를 넣으면 ${schoolTt} 시간표에서 내 시간표를 찾아 넣어요. 한 번 넣으면 매주 그대로 돌아요.`
+        : $('tt-neis-open')
         ? '[나이스에서 가져오기]로 내 수업만 골라 넣거나, 편집을 눌러 직접 넣어 주세요. 한 번 넣으면 매주 그대로 돌아요.'
         : '편집을 눌러 기본 시간표를 넣어 주세요. 한 번 넣으면 매주 그대로 돌아요.');
     tick();

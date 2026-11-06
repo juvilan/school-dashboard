@@ -17,7 +17,7 @@ $Helper = Join-Path $Dir 'helper.ps1'
 $OpenDir = Join-Path $env:LOCALAPPDATA 'SchoolDashboard'
 $OpenPs = Join-Path $OpenDir 'open.ps1'
 function Register-Dl {
-  # sdash-dl: → open.ps1 (다운로드 폴더 열기 · 방금 받은 파일 열기). 받기에 실패하면 폴더만 여는 예전 방식.
+  # sdash-dl: → open.ps1 (다운로드 폴더 · 자주 가는 폴더 열기). 받기에 실패하면 다운로드 폴더만 여는 예전 방식.
   $cmd = 'explorer.exe shell:Downloads'
   try {
     New-Item $OpenDir -ItemType Directory -Force | Out-Null
@@ -25,6 +25,42 @@ function Register-Dl {
     Invoke-WebRequest -UseBasicParsing 'https://juvilan.github.io/school-dashboard/ai/open.ps1' -OutFile $OpenPs
     $ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
     $cmd = "`"$ps`" -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$OpenPs`" `"%1`""
+    # 검은 창이 번쩍이지 않게: 창을 만들지 않는 wscript 가 open.vbs → open.ps1 을 숨겨서 실행한다.
+    # 학교 PC 에서 Windows Script Host 를 꺼 두었으면 위의 PowerShell 방식 그대로 (잠깐 번쩍임)
+    $wscript = Join-Path $env:SystemRoot 'System32\wscript.exe'
+    $wshOff = $false
+    foreach ($h in 'HKCU:', 'HKLM:') {
+      try { if ("$((Get-ItemProperty "$h\Software\Microsoft\Windows Script Host\Settings" -Name Enabled -ErrorAction Stop).Enabled)" -eq '0') { $wshOff = $true } } catch { }
+    }
+    if ((Test-Path $wscript) -and (Test-Path (Join-Path $env:SystemRoot 'System32\vbscript.dll')) -and -not $wshOff) {
+      $vbs = Join-Path $OpenDir 'open.vbs'
+      Set-Content -LiteralPath $vbs -Encoding ASCII -Value @'
+' School Dashboard: run open.ps1 (next to this file) with no console window.
+Option Explicit
+Dim sh, fso, a, i, c, ps, dir
+If WScript.Arguments.Count < 1 Then WScript.Quit 7
+a = WScript.Arguments(0)
+If Len(a) > 4000 Or LCase(Left(a, 9)) <> "sdash-dl:" Or Right(a, 1) = "\" Then WScript.Quit
+For i = 1 To Len(a)
+  c = AscW(Mid(a, i, 1))
+  If (c >= 0 And c < 32) Or c = 34 Or c = 123 Or c = 127 Then WScript.Quit
+Next
+' Run expands %NAME% in the command line, so pass "%" as "{" (open.ps1 turns it back).
+a = Replace(a, "%", "{")
+Set sh = CreateObject("WScript.Shell")
+Set fso = CreateObject("Scripting.FileSystemObject")
+dir = fso.GetParentFolderName(WScript.ScriptFullName)
+ps = sh.ExpandEnvironmentStrings("%SystemRoot%") & "\System32\WindowsPowerShell\v1.0\powershell.exe"
+sh.Run """" & ps & """ -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File """ & dir & "\open.ps1"" """ & a & """", 0, False
+'@
+      # 시험: 인자 없이 돌리면 7 로 끝난다. VBScript 가 막힌 PC(기능 꺼짐·차단)면 다른 값 → PowerShell 방식 그대로
+      $ok = $false
+      try {
+        $t = Start-Process -FilePath $wscript -ArgumentList '//B', '//Nologo', "`"$vbs`"" -Wait -PassThru -WindowStyle Hidden
+        $ok = $t.ExitCode -eq 7
+      } catch { }
+      if ($ok) { $cmd = "`"$wscript`" //B //Nologo `"$vbs`" `"%1`"" }
+    }
   } catch { }
   $k = 'HKCU:\Software\Classes\sdash-dl'
   New-Item "$k\shell\open\command" -Force | Out-Null
@@ -189,7 +225,7 @@ try {
   $s.Description = '학교 대시보드 AI 도우미'
   $s.Save()
   Start-Process -FilePath $ps -ArgumentList $argLine -WindowStyle Hidden
-  # 대시보드의 [📁 다운로드] 버튼·받은 파일 [바로 열기]도 같이 켠다 (pc.ps1 의 Register-Dl 과 같음)
+  # 대시보드의 [📁 다운로드]·자주 가는 폴더 버튼도 같이 켠다 (pc.ps1 의 Register-Dl 과 같음)
   try { [void](Register-Dl) } catch { }
 
   # 켜졌는지 확인
