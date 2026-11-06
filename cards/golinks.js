@@ -197,6 +197,65 @@
       if (!fd.length) box.append(el('li', 'muted small', '아직 없어요. 아래에서 추가해 주세요.'));
     }
     $('go-edit').addEventListener('click', () => { fd = [...(S().folders || [])]; $('fd-msg').textContent = ''; renderFolders(); });
+    // [폴더 찾기]: 이 PC 설정이 둔 open.ps1 이 윈도우 폴더 고르는 창을 띄우고, 고른 경로를 클립보드에 넣는다.
+    // 웹페이지는 PC 폴더 경로를 알 수 없어서 이렇게 돌아온다. 창이 다시 앞으로 오면 클립보드를 읽어 칸에 넣는다.
+    let picking = 0;
+    let nonce = '';
+    const PICK_RE = /^SDASH-PICK\|([0-9a-f]+)\|(.*)$/s;
+    const pathOk = (t) => /^[A-Za-z]:\\/.test(t) && t.length <= 240 && !/[\r\n"<>|?*]/.test(t);
+    const fillPath = (t) => {
+      $('fd-add-path').value = t;
+      if (!$('fd-add-title').value.trim()) $('fd-add-title').value = (t.replace(/\\+$/, '').split('\\').pop() || t).slice(0, 20);
+      $('fd-msg').textContent = '경로가 들어갔어요. 별명을 확인하고 [추가]를 눌러 주세요.';
+      $('fd-add-title').focus();
+      $('fd-add-title').select();
+    };
+    const afterPick = async () => {
+      if (!picking || !$('go-dialog').open) { picking = 0; return; }
+      picking = 0;
+      let t = '';
+      try { t = (await navigator.clipboard.readText()).trim(); } catch {
+        $('fd-msg').textContent = '고른 경로를 가져오지 못했어요. 경로 칸을 누르고 Ctrl+V 로 붙여넣어 주세요.';
+        $('fd-add-path').focus();
+        return;
+      }
+      const m = PICK_RE.exec(t);
+      if (m && m[1] === nonce && !m[2]) { $('fd-msg').textContent = '폴더 고르기를 취소했어요.'; return; }
+      if (m && m[1] === nonce && pathOk(m[2].trim())) {
+        fillPath(m[2].trim());
+        navigator.clipboard.writeText(m[2].trim()).catch(() => {}); // 클립보드에는 경로만 남김
+      } else if (m && m[1] === nonce) $('fd-msg').textContent = '\\\\서버 같은 네트워크 위치는 넣을 수 없어요. 연결된 드라이브(Z: 등)로 골라 주세요.';
+      else $('fd-msg').textContent = '고른 폴더를 받지 못했어요. 다운로드 폴더가 열렸다면 [설정]의 "이 PC 설정"을 한 번 더 해 주세요.';
+    };
+    $('fd-add-path').addEventListener('paste', () => setTimeout(() => {
+      let t = $('fd-add-path').value.trim();
+      const m = PICK_RE.exec(t); // 클립보드 읽기를 막았을 때 붙여넣은 결과
+      if (m) { t = m[2].trim(); $('fd-add-path').value = t; }
+      if (pathOk(t) && !$('fd-add-title').value.trim()) fillPath(t);
+    }));
+    $('fd-pick').addEventListener('click', () => {
+      $('fd-msg').textContent = '폴더 고르는 창을 띄우는 중… (안 보이면 작업 표시줄을 봐 주세요)';
+      const my = ++picking;
+      let left = false;
+      const onBlur = () => { left = true; };
+      window.addEventListener('blur', onBlur, { once: true });
+      // 고르는 창이 닫혀 이 창이 다시 앞으로 오면
+      const onFocus = () => {
+        if (picking !== my) return;
+        if (left) setTimeout(afterPick, 150); else window.addEventListener('focus', onFocus, { once: true });
+      };
+      window.addEventListener('focus', onFocus, { once: true });
+      // 취소했을 때 예전 클립보드 경로가 들어가지 않게 먼저 비운다 (누른 순간이라 쓸 수 있음)
+      nonce = [...crypto.getRandomValues(new Uint8Array(8))].map((x) => x.toString(16).padStart(2, '0')).join('');
+      const go = () => { location.href = `sdash-dl:pick?n=${nonce}`; };
+      navigator.clipboard.writeText('').then(go, go);
+      // 느린 PC 는 창이 늦게 뜰 수 있다: 안내만 하고 1분까지는 계속 기다린다
+      setTimeout(() => {
+        if (left || picking !== my) return;
+        $('fd-msg').textContent = '폴더 고르는 창이 안 뜨면 [설정]의 "이 PC 설정"을 한 번 해 주세요. 또는 탐색기 주소창의 경로를 복사해 붙여넣어도 돼요.';
+      }, 6000);
+      setTimeout(() => { if (picking === my && !left) { picking = 0; window.removeEventListener('blur', onBlur); } }, 60000);
+    });
     $('fd-add').addEventListener('submit', async (e) => {
       e.preventDefault();
       const title = $('fd-add-title').value.trim();
@@ -265,29 +324,32 @@
     window.Dash.openPcFolder = () => openDl();
     $('dl-close').addEventListener('click', () => $('dl-dialog').close());
     // 설정 창에서도 다시 열 수 있게 (처음 안내를 닫아 버린 경우)
+    window.Dash.openPcSetup = () => {
+      try { localStorage.setItem('dash-dl-asked4', '1'); } catch { /* 이번만 */ }
+      $('dl-intro').textContent = '이 PC 에 한 번만 설정해 두면 [📁 다운로드]·자주 가는 폴더 버튼이 탐색기를 열어요.';
+      $('t-settings')?.close();
+      $('dl-dialog').showModal();
+    };
     const pc = $('t-pc');
     if (pc) {
       pc.hidden = false;
-      $('t-pc-open').addEventListener('click', () => {
-        $('dl-intro').textContent = '이 PC 에 한 번만 설정해 두면 [📁 다운로드]·자주 가는 폴더 버튼이 탐색기를 열어요.';
-        $('t-settings')?.close();
-        $('dl-dialog').showModal();
-      });
+      $('t-pc-open').addEventListener('click', () => window.Dash.openPcSetup());
     }
     // 처음 한 번(새로 설치했거나 이미 쓰던 선생님이 새로고침했을 때): 등록을 먼저 권한다.
     // 웹페이지·앱 설치는 PC 설정을 직접 바꿀 수 없어서, 붙여넣기 한 번은 선생님이 해야 한다.
     const standalone = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: window-controls-overlay)').matches;
-    // 3: 폴더를 열 때 검은 창이 번쩍이지 않게 바뀌어서, 예전에 설정한 PC 도 한 번 더 권한다
+    // 4: [폴더 찾기]가 생겨서(검은 창 없애기도 함께), 예전에 설정한 PC 도 한 번 더 권한다
     let asked = false;
-    try { asked = localStorage.getItem('dash-dl-asked3') === '1'; } catch { asked = true; }
+    try { asked = localStorage.getItem('dash-dl-asked4') === '1'; } catch { asked = true; }
     if (!asked) {
       $('dl-intro').textContent = ok
-        ? '고쳤어요! 폴더를 열 때 검은 창이 번쩍이지 않게 바꿨어요. 이 PC 설정을 한 번 더 해 주세요. (나중에 하려면 [닫기] → [설정]의 "이 PC 설정")'
+        ? '새 기능! 자주 가는 폴더를 [폴더 찾기]로 눌러 고를 수 있고, 폴더를 열 때 검은 창도 안 떠요. 이 PC 설정을 한 번 더 해 주세요. (나중에 하려면 [닫기] → [설정]의 "이 PC 설정")'
         : `${standalone ? '앱 설치를 마쳤어요! ' : '새 기능이에요! '}이 PC 에 한 번만 설정해 두면 [📁 다운로드]·자주 가는 폴더 버튼이 탐색기를 열어요. (나중에 하려면 [닫기] → [설정]의 "이 PC 설정")`;
       // 다른 창(처음 설정 등)이 떠 있으면 닫힐 때까지 기다렸다가 한 번만
       const tryShow = () => {
         if (document.querySelector('dialog[open]') || document.hidden) { setTimeout(tryShow, 2000); return; }
-        try { localStorage.setItem('dash-dl-asked3', '1'); } catch { /* 이번만 */ }
+        try { localStorage.setItem('dash-dl-asked4', '1'); } catch { /* 이번만 */ }
+        if (window.Dash.startGuide?.isNew()) return; // 처음 쓰는 선생님은 시작하기 안내에 이 PC 설정이 들어 있음
         $('dl-dialog').showModal();
       };
       setTimeout(tryShow, 1500);

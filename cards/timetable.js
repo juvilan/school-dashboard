@@ -128,7 +128,8 @@
     $('tt-edit').textContent = editing ? '편집 끝' : '편집';
     $('tt-bells-open').hidden = !editing;
     $('tt-bulk-open').hidden = !editing;
-    if ($('tt-neis-open')) $('tt-neis-open').hidden = !tt || (!editing && tt.base.length > 0);
+    // 학교 특별판은 학교 시간표 가져오기가 더 정확해서 나이스 가져오기는 숨긴다
+    if ($('tt-neis-open')) $('tt-neis-open').hidden = !tt || Boolean(schoolTt) || (!editing && tt.base.length > 0);
     if ($('tt-school-open')) $('tt-school-open').hidden = !tt || !schoolTt || !window.Dash.schoolTtReady || (!editing && tt.base.length > 0);
     $('tt-copy-all').hidden = !editing;
     if (!editing) { setCopied(null); sel = null; }
@@ -178,6 +179,14 @@
           if (slot.off) c.textContent = '없음';
         }
         if (slot.changed) c.classList.add('changed');
+        const warn = window.Dash.ttWarn?.get(`${date}|${p + 1}`);
+        if (warn && slot.lesson && !slot.changed) {
+          c.classList.add('neis-diff');
+          const mark = el('span', 'tt-warn-mark', '⚠');
+          mark.setAttribute('aria-hidden', 'true');
+          c.append(mark);
+          c.title = [c.title, `⚠ 나이스에는 ${warn} (보강·교체인지 확인해 주세요)`].filter(Boolean).join('\n');
+        }
         const note = noteMap.get(`${date}|${p + 1}`);
         if (note) {
           c.classList.add('has-note');
@@ -451,6 +460,7 @@
     }
   }
   window.Dash.ttPreview = drawPreview;
+  window.Dash.ttRender = () => build(); // ttcheck.js (나이스와 다른 칸 표시) 가 다시 그리게
   $('tt-bulk-open').addEventListener('click', () => {
     $('tt-bulk-text').value = '';
     $('tt-bulk-msg').textContent = '';

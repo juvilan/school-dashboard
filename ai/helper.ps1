@@ -1,16 +1,20 @@
 ﻿# 학교 대시보드 AI 도우미 (윈도우 PowerShell 5.1 이상)
-# 이 PC 에 깔린 Claude Code 로 대시보드 대화창의 질문에 답한다. 선생님 각자의 Claude 구독으로 동작한다.
+# 이 PC 에 깔린 Claude Code(Claude 구독) 또는 Codex CLI(ChatGPT 구독)로 대시보드 대화창의 질문에 답한다.
+# 선생님 각자의 구독으로 동작한다. Codex 는 설치(setup.ps1 -Codex)가 이 폴더의 codex\ 에 두고,
+# 로그인·설정은 이 폴더의 codex-home\ 에만 둔다 (선생님 PC 의 다른 Codex 설정과 섞이지 않게).
 # - 127.0.0.1 에서만 듣는다 (다른 PC 에서는 닿지 않음).
 # - 대시보드 주소(https://juvilan.github.io)에서 온 요청만 받는다. 다른 웹사이트는 거절.
 # - Claude Code 는 도구를 모두 끄고 실행한다 → 파일을 읽거나 고치거나 명령을 실행하지 못하고 대화만 한다.
+# - Codex 도 명령 실행·앱·플러그인·웹 검색을 끄고, 읽기 전용·기록 없이(--ephemeral) 실행한다.
 # 기능(대화 화면)은 대시보드 쪽에 있고, 이 도우미는 질문을 넘기고 답을 그대로 돌려주는 일만 한다.
 
 $ErrorActionPreference = 'Stop'
-$HelperVersion = 2
+$HelperVersion = 3
 $Port = 47615
 $Dir = Join-Path $env:LOCALAPPDATA 'SchoolDashboardAI'
 $Work = Join-Path $Dir 'work'   # Claude Code 를 이 빈 폴더에서 실행 (다른 폴더의 설정·파일을 보지 않게)
 New-Item -ItemType Directory -Force -Path $Work | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $Dir 'codex-home') | Out-Null
 
 $Allowed = @('https://juvilan.github.io')
 if ($env:SDAI_EXTRA_ORIGIN) { $Allowed += $env:SDAI_EXTRA_ORIGIN }   # 시험용
@@ -20,6 +24,8 @@ $S = [hashtable]::Synchronized(@{
   Port    = $Port
   Allowed = $Allowed
   Work    = $Work
+  CodexExe  = (Join-Path $Dir 'codex\bin\codex.exe')
+  CodexHome = (Join-Path $Dir 'codex-home')
   Log     = (Join-Path $Dir 'helper.log')
   Login   = $null      # 로그인 진행 중인 claude 프로세스와 출력
   Chats   = 0          # 동시에 도는 대화 수
@@ -52,6 +58,33 @@ $Handler = {
     return $null
   }
 
+  # 이 Codex 판에 있는 기능 이름 (없는 이름을 --disable 하면 Codex 가 오류로 멈춰서, 있는 것만 끈다). 파일이 바뀌면 다시 읽음
+  function Codex-Features([string]$exe) {
+    $stamp = (Get-Item -LiteralPath $exe).LastWriteTimeUtc.Ticks
+    $c = $S.CxFeatures
+    if ($c -and $c.Stamp -eq $stamp) { return $c.Names }
+    $r = Invoke-Short $exe @('features', 'list') 30000
+    $names = @{}
+    foreach ($ln in ($r.out -split "`n")) { if ($ln -match '^([a-z0-9_]+)\s') { $names[$Matches[1]] = $true } }
+    if ($names.Count -gt 0) { $S.CxFeatures = @{ Stamp = $stamp; Names = $names } }
+    return $names
+  }
+
+  # ChatGPT 계정 정보: codex-home\auth.json 의 id_token(JWT) 가운데 부분에서 이메일·요금제만 읽는다
+  function Codex-Account {
+    try {
+      $a = Get-Content -Raw -Encoding UTF8 (Join-Path $S.CodexHome 'auth.json') | ConvertFrom-Json
+      $t = [string]$a.tokens.id_token
+      if (-not $t) { return $null }
+      $mid = $t.Split('.')[1].Replace('-', '+').Replace('_', '/')
+      while ($mid.Length % 4) { $mid += '=' }
+      $j = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($mid)) | ConvertFrom-Json
+      $plan = ''
+      try { $plan = [string]$j.'https://api.openai.com/auth'.chatgpt_plan_type } catch { }
+      return @{ email = [string]$j.email; plan = $plan }
+    } catch { return $null }
+  }
+
   # 윈도우 명령줄 규칙대로 인자 하나를 따옴표로 감싼다 (빈 값, 공백, 따옴표, 역슬래시 안전)
   function Quote-Arg([string]$a) {
     if ($a.Length -gt 0 -and $a -notmatch '[\s"]') { return $a }
@@ -80,6 +113,8 @@ $Handler = {
     $psi.StandardOutputEncoding = $utf8
     $psi.StandardErrorEncoding = $utf8
     $psi.WorkingDirectory = $S.Work
+    $psi.EnvironmentVariables['CODEX_HOME'] = $S.CodexHome   # Codex 는 이 도우미 폴더의 로그인·설정만 본다
+    $psi.EnvironmentVariables['NO_COLOR'] = '1'
     return [System.Diagnostics.Process]::Start($psi)
   }
 
@@ -128,19 +163,21 @@ $Handler = {
       }
     }
   }
-  function Login-State {
+  function Login-State([string]$want) {
     [System.Threading.Monitor]::Enter($S.Lock)
     try { Pump-Login } finally { [System.Threading.Monitor]::Exit($S.Lock) }
     $L = $S.Login
+    if ($L -and $want -and $L.Kind -ne $want) { return @{ running = $false } }   # 다른 쪽(Claude↔ChatGPT) 로그인은 보이지 않음
     # 10분이 지나도 끝나지 않은 로그인(창을 닫음 등)은 끈다 → 다시 누르면 새로 시작
     if ($L -and -not $L.Proc.HasExited -and ((Get-Date) - $L.Started).TotalMinutes -gt 10) { Stop-Tree $L.Proc; [void]$L.Proc.WaitForExit(3000) }
     if (-not $L) { return @{ running = $false } }
     $text = $L.Text.ToString()
     $url = $null
     $m = [regex]::Match($text, 'https://[^\s"''<>]+')
-    if ($m.Success -and $m.Value -match '^https://([a-z0-9-]+\.)*(claude\.ai|claude\.com|anthropic\.com)/') { $url = $m.Value }
+    $okUrl = if ($L.Kind -eq 'codex') { '^https://([a-z0-9-]+\.)*(openai\.com|chatgpt\.com)/' } else { '^https://([a-z0-9-]+\.)*(claude\.ai|claude\.com|anthropic\.com)/' }
+    if ($m.Success -and $m.Value -match $okUrl) { $url = $m.Value }
     $running = -not $L.Proc.HasExited
-    $r = @{ running = $running; url = $url; tail = $text.Substring([Math]::Max(0, $text.Length - 600)) }
+    $r = @{ running = $running; url = $url; kind = $L.Kind; tail = $text.Substring([Math]::Max(0, $text.Length - 600)) }
     if (-not $running) { $r.exitCode = $L.Proc.ExitCode }
     return $r
   }
@@ -217,6 +254,13 @@ $Handler = {
     }
 
     $claude = Find-Claude
+    # /v1/codex/… 는 같은 일을 Codex(ChatGPT 구독)로. 물음표 뒤는 보지 않는다
+    $path = ($path -split '\?', 2)[0]
+    $kind = 'claude'
+    if ($path -like '/v1/codex/*') { $kind = 'codex'; $path = '/v1/' + $path.Substring(10) }
+    $codex = if (Test-Path -LiteralPath $S.CodexExe) { $S.CodexExe } else { $null }
+    $exe = if ($kind -eq 'codex') { $codex } else { $claude }
+    $noExe = if ($kind -eq 'codex') { 'no-codex' } else { 'no-claude' }
 
     # ---- 상태: 도우미 판, Claude Code 설치·로그인 여부 ----
     if ($method -eq 'GET' -and $path -eq '/v1/status') {
@@ -224,7 +268,12 @@ $Handler = {
       $c = $S.StatusCache
       if ($c -and ((Get-Date) - $c.At).TotalSeconds -lt 5) { Send-Json 200 $c.R; return }
       $gen = $S.StatusGen
-      $r = @{ helper = $S.Version; claude = [bool]$claude; loggedIn = $false }
+      $r = @{ helper = $S.Version; claude = [bool]$claude; loggedIn = $false; codex = [bool]$codex; codexLoggedIn = $false }
+      if ($codex) {
+        $cs = Invoke-Short $codex @('login', 'status') 20000
+        $r.codexLoggedIn = ($cs.code -eq 0) -and (($cs.out + $cs.err) -match 'Logged in')
+        if ($r.codexLoggedIn) { $acc = Codex-Account; if ($acc) { $r.codexEmail = $acc.email; $r.codexPlan = $acc.plan } }
+      }
       if ($claude) {
         $v = Invoke-Short $claude @('--version') 20000
         $r.version = ($v.out -split "`n")[0].Trim()
@@ -245,45 +294,49 @@ $Handler = {
 
     # ---- 로그인: claude auth login 을 띄운다 (브라우저에 Claude 로그인 창이 열림) ----
     if ($path -eq '/v1/login') {
-      if (-not $claude) { Send-Json 503 @{ error = 'no-claude' }; return }
-      if ($method -eq 'GET') { Send-Json 200 (Login-State); return }
+      if (-not $exe) { Send-Json 503 @{ error = $noExe }; return }
+      if ($method -eq 'GET') { Send-Json 200 (Login-State $kind); return }
       if ($method -ne 'POST') { Send-Json 404 @{ error = 'not found' }; return }
       [System.Threading.Monitor]::Enter($S.Lock)
       try {
         $L = $S.Login
+        if ($L -and -not $L.Proc.HasExited -and $L.Kind -ne $kind) { Stop-Tree $L.Proc; [void]$L.Proc.WaitForExit(3000); $L = $null }   # 다른 쪽 로그인 중이면 끄고
         if (-not $L -or $L.Proc.HasExited) {
-          $p = New-ClaudeProcess $claude @('auth', 'login', '--claudeai')
+          # Codex: 브라우저에 ChatGPT 로그인 창을 열고, 끝나면 이 PC(127.0.0.1:1455)로 돌아온다
+          $largv = if ($kind -eq 'codex') { @('login') } else { @('auth', 'login', '--claudeai') }
+          $p = New-ClaudeProcess $exe $largv
           $S.Login = @{
+            Kind = $kind
             Proc = $p
             Text = New-Object System.Text.StringBuilder
             OutTask = $p.StandardOutput.ReadLineAsync()
             ErrTask = $p.StandardError.ReadLineAsync()
             Started = Get-Date
           }
-          Log 'login started'
+          Log "login started ($kind)"
         }
       } finally { [System.Threading.Monitor]::Exit($S.Lock) }
       Start-Sleep -Milliseconds 1500
-      Send-Json 202 (Login-State)
+      Send-Json 202 (Login-State $kind)
       return
     }
     # 로그인 창이 "코드를 붙여넣으세요"를 물을 때 대시보드에서 받은 코드를 넘긴다
     if ($method -eq 'POST' -and $path -eq '/v1/login/code') {
       $L = $S.Login
       $code = [string]$body.code
-      if (-not $L -or $L.Proc.HasExited) { Send-Json 409 @{ error = 'no-login' }; return }
+      if (-not $L -or $L.Proc.HasExited -or $L.Kind -ne $kind) { Send-Json 409 @{ error = 'no-login' }; return }
       if ($code.Length -lt 4 -or $code.Length -gt 2000 -or $code -match '[\r\n]') { Send-Json 400 @{ error = 'code' }; return }
       $L.Proc.StandardInput.WriteLine($code)
       $L.Proc.StandardInput.Flush()
       Start-Sleep -Milliseconds 1500
-      Send-Json 200 (Login-State)
+      Send-Json 200 (Login-State $kind)
       return
     }
     if ($method -eq 'POST' -and $path -eq '/v1/login/cancel') {
       [System.Threading.Monitor]::Enter($S.Lock)
       try {
         $L = $S.Login
-        if ($L) { Stop-Tree $L.Proc; [void]$L.Proc.WaitForExit(3000); $S.Login = $null }
+        if ($L -and $L.Kind -eq $kind) { Stop-Tree $L.Proc; [void]$L.Proc.WaitForExit(3000); $S.Login = $null }
       } finally { [System.Threading.Monitor]::Exit($S.Lock) }
       Send-Json 200 @{ ok = $true }
       return
@@ -301,21 +354,22 @@ $Handler = {
       return
     }
     if ($method -eq 'POST' -and $path -eq '/v1/logout') {
-      if (-not $claude) { Send-Json 503 @{ error = 'no-claude' }; return }
-      $r = Invoke-Short $claude @('auth', 'logout') 20000
+      if (-not $exe) { Send-Json 503 @{ error = $noExe }; return }
+      $largv = if ($kind -eq 'codex') { @('logout') } else { @('auth', 'logout') }
+      $r = Invoke-Short $exe $largv 20000
       Send-Json 200 @{ ok = ($r.code -eq 0) }
       return
     }
 
     # ---- 대화: 질문 하나를 넘기고, Claude Code 의 출력(stream-json 줄)을 그대로 흘려보낸다 ----
     if ($method -eq 'POST' -and $path -eq '/v1/chat') {
-      if (-not $claude) { Send-Json 503 @{ error = 'no-claude' }; return }
+      if (-not $exe) { Send-Json 503 @{ error = $noExe }; return }
       $message = [string]$body.message
       $session = [string]$body.session
       $system = [string]$body.system
       $model = [string]$body.model
       if ($message.Trim().Length -eq 0 -or $message.Length -gt 100000) { Send-Json 400 @{ error = 'message' }; return }
-      if ($session -and $session -notmatch '^[0-9a-fA-F-]{36}$') { Send-Json 400 @{ error = 'session' }; return }
+      if ($session -and ($kind -eq 'codex' -or $session -notmatch '^[0-9a-fA-F-]{36}$')) { Send-Json 400 @{ error = 'session' }; return }
       if ($model -and $model -notmatch '^[a-z0-9][a-z0-9.\-\[\]]{0,60}$') { Send-Json 400 @{ error = 'model' }; return }
       if ($system.Length -gt 8000) { Send-Json 400 @{ error = 'system' }; return }
 
@@ -326,13 +380,29 @@ $Handler = {
       $p = $null
       $headSent = $false
       try {
-        # 도구 없음(--tools ""), 이 PC 의 설정·MCP·명령 무시 → 대화만
-        $argv = @('-p', '--output-format', 'stream-json', '--verbose', '--include-partial-messages',
-          '--tools', '', '--setting-sources', '', '--strict-mcp-config', '--disable-slash-commands')
-        if ($system) { $argv += @('--system-prompt', $system) }
-        if ($session) { $argv += @('--resume', $session) }
-        if ($model) { $argv += @('--model', $model) }
-        $p = New-ClaudeProcess $claude $argv
+        if ($kind -eq 'codex') {
+          # 명령 실행(셸·코드 모드)·앱·플러그인·브라우저·웹 검색 끔, 읽기 전용, 기록 남기지 않음 → 대화만.
+          # 이어 묻기는 대시보드가 앞 대화를 글로 함께 보낸다. 지시문은 질문 앞에 붙인다 (exec 에는 따로 넣는 칸이 없음)
+          $argv = @('exec', '--json', '--ephemeral', '--skip-git-repo-check', '--ignore-user-config', '--ignore-rules',
+            '-s', 'read-only', '--color', 'never', '-C', $S.Work)
+          $have = Codex-Features $exe
+          # 명령을 실행하는 기능(셸·코드 모드)은 꼭 꺼야 한다: 목록을 못 읽었으면 그대로 넣어 본다
+          foreach ($f in @('shell_tool', 'unified_exec', 'code_mode_host', 'code_mode', 'apps', 'plugins', 'browser_use', 'computer_use',
+              'hooks', 'skill_search', 'tool_suggest', 'multi_agent', 'multi_agent_v2', 'goals', 'image_generation', 'memories')) {
+            if ($have.Count -eq 0 -or $have.ContainsKey($f)) { $argv += @('--disable', $f) }
+          }
+          # 그림 보기 도구도 끈다 (파일을 읽을 수 있는 도구). 모르는 설정은 Codex 가 경고만 하고 넘어간다
+          $argv += @('-c', 'web_search="disabled"', '-c', 'tools.view_image=false', '-c', 'model_reasoning_effort="low"', '-')
+          if ($system) { $message = "[지시]`n$system`n`n[선생님 질문]`n$message" }
+        } else {
+          # 도구 없음(--tools ""), 이 PC 의 설정·MCP·명령 무시 → 대화만
+          $argv = @('-p', '--output-format', 'stream-json', '--verbose', '--include-partial-messages',
+            '--tools', '', '--setting-sources', '', '--strict-mcp-config', '--disable-slash-commands')
+          if ($system) { $argv += @('--system-prompt', $system) }
+          if ($session) { $argv += @('--resume', $session) }
+          if ($model) { $argv += @('--model', $model) }
+        }
+        $p = New-ClaudeProcess $exe $argv
         $in = $utf8.GetBytes($message)
         $p.StandardInput.BaseStream.Write($in, 0, $in.Length)
         $p.StandardInput.Close()
@@ -353,7 +423,7 @@ $Handler = {
           $line = $task.Result
           if ($null -eq $line) { break }
           if (((Get-Date) - $started).TotalMinutes -gt 10) { Stop-Tree $p; return }
-          if ($line -match '^\{"type":"result"') { $sawResult = $true }
+          if ($line -match '^\{"type":"(result|turn\.completed|turn\.failed)"') { $sawResult = $true }
           Send-Raw ($utf8.GetBytes($line + "`n"))
           $task = $p.StandardOutput.ReadLineAsync()
         }
@@ -370,7 +440,8 @@ $Handler = {
         Log ('chat: ' + $_.Exception.Message)
         if ($p) { Stop-Tree $p }
         try {
-          $e = (ConvertTo-Json -InputObject @{ type = 'helper_error'; stderr = ('도우미가 Claude Code 를 실행하지 못했어요: ' + $_.Exception.Message) } -Compress) + "`n"
+          $who = if ($kind -eq 'codex') { 'Codex' } else { 'Claude Code' }
+          $e = (ConvertTo-Json -InputObject @{ type = 'helper_error'; stderr = ("도우미가 $who 를 실행하지 못했어요: " + $_.Exception.Message) } -Compress) + "`n"
           if (-not $headSent) { Send-Head 200 'OK' @{ 'Content-Type' = 'application/x-ndjson; charset=utf-8' } }
           Send-Raw ($utf8.GetBytes($e))
         } catch { }

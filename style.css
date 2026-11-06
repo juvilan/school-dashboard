@@ -1012,3 +1012,23 @@ body.docked .dock-card.drawer:hover { box-shadow: -8px 0 24px rgb(0 0 0 / .18); 
 @media (min-width: 1200px) and (min-height: 720px) {
   .col-left > #card-go { flex: 1 1 0; min-height: 140px; overflow-y: auto; overscroll-behavior: contain; }
 }
+
+/* ---- 시작하기 (start.js, 웹판) ---- */
+.start-chip { margin-top: 0; }
+#start { width: min(560px, calc(100vw - 24px)); }
+.start-steps { list-style: none; margin: 12px 0 4px; padding: 0; display: grid; gap: 8px; }
+.start-step { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
+.start-step .small-btn { margin-top: 0; }
+.start-num { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; background: color-mix(in srgb, var(--accent) 18%, var(--card)); color: var(--accent); }
+.start-step.done { opacity: .75; }
+.start-step.done .start-num { background: var(--accent); color: #fff; }
+.start-txt { display: grid; gap: 2px; min-width: 0; }
+.start-ok { color: var(--accent); white-space: nowrap; }
+#w-restore-ask { width: min(440px, calc(100vw - 24px)); }
+#fd-add { grid-template-columns: 1fr 2fr auto auto; }
+@media (max-width: 520px) { #fd-add { grid-template-columns: 1fr; } }
+.tt-cell.neis-diff { box-shadow: inset 0 0 0 2px #d97706; }
+.tt-warn-mark { position: absolute; top: 1px; right: 3px; font-size: 11px; line-height: 1; z-index: 3; pointer-events: none; }
+.tt-neis-warn { margin: 6px 0 0; padding: 6px 10px; border-radius: 8px; background: color-mix(in srgb, #d97706 14%, var(--card)); }
+.tt-neis-warn[hidden] { display: none; }
+.tt-neis-warn .small-btn { margin: 0 0 0 4px; }

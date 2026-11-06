@@ -57,6 +57,7 @@
     }
   });
   $('t-open').addEventListener('click', openSettings);
+  window.Dash.openSettings = openSettings; // 시작하기(start.js)에서
   $('t-close').addEventListener('click', () => $('t-settings').close());
 
   $('t-school-form').addEventListener('submit', async (e) => {
@@ -108,6 +109,7 @@
   listen('settings', () => {
     renderTitle();
     if ($('t-settings').open) renderSettings();
-    if (!asked && state.data.settings && !state.data.settings.office) { asked = true; openSettings(); }
+    // 시작하기 안내(웹판)가 뜨면 그쪽에서 연다
+    if (!asked && state.data.settings && !state.data.settings.office) { asked = true; if (!window.Dash.startGuide?.isNew()) openSettings(); }
   });
 })();

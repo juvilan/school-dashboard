@@ -152,7 +152,28 @@
     return { cells, rows: Math.min(g.length, periodCount), cols: Math.min(Math.max(0, ...g.map((r) => r.length)), 5), skipped };
   }
 
-  const api = { colorFor, COLORS, parseGrid, cellLesson, gridToCells, toMin, progress, dayLessons, isPast, nowStatus, stripText, lessonText, weekMonday };
+  // 오늘 내 기본 수업 칸 중, 나이스(반별 시간표)에는 같은 반·교시에 다른 과목이 있는 칸 (보강·교체를 놓치지 않게)
+  // lessons: dayLessons 결과, rows: 나이스 행 [{ date, grade, klass, period, subject }].
+  // "2-3" 같은 한 반 수업만 본다 (블록·이동 수업은 나이스 반 이름과 맞출 수 없음). 그날만 바꿔 둔 칸은 이미 확인한 것.
+  // 결과: [{ period, mine, neis: [과목…] }]
+  function neisDiff(lessons, rows, date) {
+    // 띄어쓰기·가운뎃점만 다른 것은 같은 과목. 앞뒤가 붙은 것([보강]공통국어2, 수학과제 탐구)은 다른 과목으로 본다
+    const squash = (s) => String(s || '').normalize('NFKC').replace(/[\s·.]/g, '').toLowerCase();
+    const same = (a, b) => { const x = squash(a); return Boolean(x) && x === squash(b); };
+    const out = [];
+    for (const s of lessons || []) {
+      if (!s.lesson || s.changed || !String(s.lesson.subject || '').trim()) continue;
+      const m = /^\s*(\d{1,2})\s*-\s*(\d{1,2})\s*$/.exec(s.lesson.klass || '');
+      if (!m) continue;
+      const here = (rows || []).filter((r) => r.date === date && Number(r.period) === s.period
+        && Number(r.grade) === Number(m[1]) && Number(r.klass) === Number(m[2]));
+      if (!here.length || here.some((r) => same(r.subject, s.lesson.subject))) continue;
+      out.push({ period: s.period, mine: s.lesson, neis: [...new Set(here.map((r) => r.subject))] });
+    }
+    return out;
+  }
+
+  const api = { neisDiff, colorFor, COLORS, parseGrid, cellLesson, gridToCells, toMin, progress, dayLessons, isPast, nowStatus, stripText, lessonText, weekMonday };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.TimetableLogic = api;
 })(typeof window === 'object' ? window : globalThis);

@@ -5326,6 +5326,7 @@ data: ${snap}
         await kv.set("lastBackup", Date.now()).catch(() => {
         });
         msg("\uBC31\uC5C5 \uD30C\uC77C\uC744 \uBC1B\uC558\uC5B4\uC694. (\uB2E4\uC6B4\uB85C\uB4DC \uD3F4\uB354)");
+        if ($("w-backup-hint")) $("w-backup-hint").hidden = true;
       } catch (err) {
         msg(`\uBC1B\uC9C0 \uBABB\uD588\uC5B4\uC694: ${err.message}`);
       }
@@ -5345,10 +5346,7 @@ data: ${snap}
       b.textContent = "\uBC31\uC5C5 \uD30C\uC77C \uBD88\uB7EC\uC624\uAE30";
       $("w-restore-file").click();
     });
-    $("w-restore-file").addEventListener("change", async () => {
-      const f = $("w-restore-file").files[0];
-      $("w-restore-file").value = "";
-      if (!f) return;
+    async function restore(f, say) {
       try {
         if (f.size > 50 * 1024 * 1024) throw new Error("\uD30C\uC77C\uC774 \uB108\uBB34 \uCEE4\uC694.");
         const bytes = new Uint8Array(await f.arrayBuffer());
@@ -5360,17 +5358,96 @@ data: ${snap}
         });
         await kv.set("db-before-restore", eng.exportBytes());
         await kv.set("db", bytes);
-        msg("\uBD88\uB7EC\uC654\uC5B4\uC694. \uB2E4\uC2DC \uC5EC\uB294 \uC911\u2026");
+        say("\uBD88\uB7EC\uC654\uC5B4\uC694. \uB2E4\uC2DC \uC5EC\uB294 \uC911\u2026");
         setTimeout(() => location.reload(), 300);
+        return true;
       } catch (err) {
         restoring = false;
-        msg(`\uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC5B4\uC694: ${err.message}`);
+        say(`\uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC5B4\uC694: ${err.message}`);
+        return false;
       }
+    }
+    $("w-restore-file").addEventListener("change", () => {
+      const f = $("w-restore-file").files[0];
+      $("w-restore-file").value = "";
+      if (f) restore(f, msg);
     });
-    kv.get("lastBackup").then((t) => {
-      if (t) msg(`\uB9C8\uC9C0\uB9C9\uC73C\uB85C \uBC31\uC5C5 \uBC1B\uC740 \uB54C: ${new Date(t).toLocaleDateString("ko-KR")}`);
-    }, () => {
-    });
+    const ask = $("w-restore-ask");
+    if (ask) {
+      let dropped = null;
+      const hasFiles = (e) => [...e.dataTransfer?.types || []].includes("Files");
+      window.addEventListener("dragover", (e) => {
+        if (!hasFiles(e) || e.defaultPrevented) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "copy";
+      });
+      window.addEventListener("drop", (e) => {
+        if (!hasFiles(e) || e.defaultPrevented) return;
+        e.preventDefault();
+        const f = e.dataTransfer.files?.[0];
+        if (!f || !/\.db$/i.test(f.name) || e.dataTransfer.files.length !== 1 || ask.open) return;
+        dropped = f;
+        $("w-restore-name").textContent = f.name;
+        $("w-restore-ask-msg").textContent = "";
+        $("w-restore-yes").disabled = false;
+        $("w-restore-no").disabled = false;
+        ask.showModal();
+      });
+      let working = false;
+      $("w-restore-no").addEventListener("click", () => {
+        if (!working) ask.close();
+      });
+      ask.addEventListener("cancel", (e) => {
+        if (working) e.preventDefault();
+      });
+      ask.addEventListener("close", () => {
+        dropped = null;
+      });
+      $("w-restore-yes").addEventListener("click", async () => {
+        if (!dropped || working) return;
+        working = true;
+        $("w-restore-yes").disabled = true;
+        $("w-restore-no").disabled = true;
+        const ok = await restore(dropped, (t) => {
+          $("w-restore-ask-msg").textContent = t;
+        });
+        if (!ok) {
+          working = false;
+          $("w-restore-yes").disabled = false;
+          $("w-restore-no").disabled = false;
+        }
+      });
+    }
+    const WEEK = 7 * 24 * 3600 * 1e3;
+    const hint = $("w-backup-hint");
+    (async () => {
+      try {
+        const now = Date.now();
+        let first = await kv.get("firstUse");
+        if (!first) {
+          first = now;
+          await kv.set("firstUse", now);
+        }
+        const last = await kv.get("lastBackup");
+        if (last) msg(`\uB9C8\uC9C0\uB9C9\uC73C\uB85C \uBC31\uC5C5 \uBC1B\uC740 \uB54C: ${new Date(last).toLocaleDateString("ko-KR")}`);
+        const snooze = await kv.get("backupSnooze") || 0;
+        if (!hint || now - (last || first) < WEEK || now < snooze) return;
+        $("w-backup-hint-text").textContent = last ? `\uB9C8\uC9C0\uB9C9 \uBC31\uC5C5\uC774 ${Math.floor((now - last) / 864e5)}\uC77C \uC804\uC774\uC5D0\uC694.` : "\uC790\uB8CC\uB97C \uBC31\uC5C5\uD574 \uB458\uAE4C\uC694? (\uC774 \uBE0C\uB77C\uC6B0\uC800\uC5D0\uB9CC \uC788\uC5B4\uC694)";
+        hint.hidden = false;
+      } catch {
+      }
+    })();
+    if (hint) {
+      $("w-backup-hint-btn").addEventListener("click", () => {
+        $("w-backup").click();
+        hint.hidden = true;
+      });
+      $("w-backup-hint-x").addEventListener("click", () => {
+        hint.hidden = true;
+        kv.set("backupSnooze", Date.now() + WEEK).catch(() => {
+        });
+      });
+    }
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wireBackup);
   else wireBackup();
@@ -5384,6 +5461,39 @@ data: ${snap}
     installPrompt = e;
     showInstall();
   });
+  window.addEventListener("appinstalled", () => {
+    try {
+      localStorage.setItem("dash-installed", "1");
+    } catch {
+    }
+  });
+  window.DashInstall = {
+    can: () => Boolean(installPrompt),
+    installed() {
+      if (matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: window-controls-overlay)").matches) return true;
+      try {
+        return localStorage.getItem("dash-installed") === "1";
+      } catch {
+        return false;
+      }
+    },
+    async prompt() {
+      const p = installPrompt;
+      if (!p) return false;
+      installPrompt = null;
+      await p.prompt();
+      const { outcome } = await p.userChoice;
+      if (outcome === "accepted") {
+        const box = document.getElementById("w-install");
+        if (box) box.hidden = true;
+        try {
+          localStorage.setItem("dash-installed", "1");
+        } catch {
+        }
+      }
+      return outcome === "accepted";
+    }
+  };
   function wireInstall() {
     const box = document.getElementById("w-install");
     if (!box) return;
