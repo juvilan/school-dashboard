@@ -86,6 +86,77 @@
     return c;
   }
 
+  // 넘친 칸 미리보기: 마우스를 올린 칸 옆에 그날 일정·할 일을 모두 보여 준다 (보기만, 누르면 칸을 누른 것과 같다)
+  const pop = (() => {
+    const box = document.createElement('div');
+    box.className = 'cal-pop';
+    box.hidden = true;
+    box.setAttribute('role', 'tooltip');
+    document.body.append(box);
+    const hover = window.matchMedia?.('(hover: hover)');
+    let timer = 0;
+    function hide() {
+      clearTimeout(timer);
+      box.hidden = true;
+    }
+    function place(cell) {
+      const r = cell.getBoundingClientRect();
+      const w = box.offsetWidth;
+      const h = box.offsetHeight;
+      const vw = document.documentElement.clientWidth;
+      const vh = document.documentElement.clientHeight;
+      let left = r.left;
+      if (left + w > vw - 8) left = Math.max(8, r.right - w);
+      let top = r.bottom + 4;
+      if (top + h > vh - 8) top = r.top - h - 4 >= 8 ? r.top - h - 4 : Math.max(8, vh - h - 8);
+      box.style.left = `${Math.round(left)}px`;
+      box.style.top = `${Math.round(top)}px`;
+    }
+    function show(cell, date, list) {
+      if (hover && !hover.matches) return; // 터치 화면은 누르면 날짜 창이 뜨니 그걸로
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (!cell.isConnected || !cell.matches(':hover')) return;
+        box.textContent = '';
+        const d = L.fromYmd(date);
+        const head = document.createElement('div');
+        head.className = 'cal-pop-head';
+        head.textContent = `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEK[d.getDay()]}) · ${list.length}개`;
+        box.append(head);
+        for (const item of list) {
+          const row = document.createElement('div');
+          row.className = `chip ${item.source}${item.done ? ' done' : ''}`;
+          const time = item.time ? `${item.time}${item.endTime ? `–${item.endTime}` : ''} ` : '';
+          row.textContent = item.source === 'todo' ? `${item.done ? '☑' : '☐'} ${item.title}` : `${time}${item.title}`;
+          if (item.color) row.style.setProperty('--gc', item.color);
+          box.append(row);
+        }
+        box.hidden = false;
+        // 너무 길면 아래를 잘라 "…외 N개"로
+        const rows = [...box.querySelectorAll('.chip')];
+        if (box.scrollHeight > box.clientHeight + 1) {
+          const tail = document.createElement('div');
+          tail.className = 'cal-pop-tail';
+          box.append(tail);
+          let cut = 0;
+          while (rows.length > 1 && box.scrollHeight > box.clientHeight + 1) {
+            rows.pop().remove();
+            cut++;
+            tail.textContent = `…외 ${cut}개 (누르면 다 보여요)`;
+          }
+        }
+        place(cell);
+      }, 250);
+    }
+    // 누름·끌기·스크롤·창 바뀜에는 숨긴다
+    document.addEventListener('dragstart', hide, true);
+    document.addEventListener('pointerdown', hide, true); // 무엇을 누르든 (구글 일정 칩처럼 칸까지 안 가는 누름도)
+    window.addEventListener('scroll', hide, true);
+    window.addEventListener('blur', hide);
+    window.addEventListener('resize', hide);
+    return { show, hide };
+  })();
+
   // 날짜 창이 그날 목록을 보여 줄 때 쓴다
   window.Dash.calendarItems = (date) => itemsByDate(date, date)[date] || [];
 
@@ -104,6 +175,7 @@
     $('cal-week').setAttribute('aria-pressed', String(view === 'week'));
 
     const grid = $('cal-grid');
+    pop.hide();
     grid.textContent = '';
     grid.className = `cal-grid ${view}`;
     for (const w of WEEK) {
@@ -145,11 +217,13 @@
         const more = document.createElement('div');
         more.className = 'chip more';
         more.textContent = `+${list.length - limit}`;
-        more.title = list.slice(limit).map((i) => i.title).join('\n');
         cell.append(more);
+        // 마우스를 그 칸에 잠시 올리면 그날 전체 목록을 띄운다 (누르지 않아도)
+        cell.addEventListener('mouseenter', (e) => { if (e.buttons === 0) pop.show(cell, key, list); });
+        cell.addEventListener('mouseleave', () => pop.hide());
       }
       // 칸을 누르면 그날 창 (일정·할 일 추가)
-      cell.addEventListener('click', () => window.Dash.dayEdit?.open({ date: key }));
+      cell.addEventListener('click', () => { pop.hide(); window.Dash.dayEdit?.open({ date: key }); });
       // 할 일을 끌어다 놓기
       cell.addEventListener('dragover', (e) => {
         if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
