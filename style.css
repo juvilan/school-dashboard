@@ -1037,5 +1037,6 @@ body.docked .dock-card.drawer:hover { box-shadow: -8px 0 24px rgb(0 0 0 / .18); 
 .cal-pop { position: fixed; z-index: 60; width: max-content; min-width: 160px; max-width: min(280px, calc(100vw - 16px)); max-height: min(60vh, 360px); overflow: hidden; padding: 6px 8px 7px; border: 1px solid var(--line); border-radius: 8px; background: var(--card, var(--bg)); color: var(--text); box-shadow: 0 6px 20px rgba(0, 0, 0, .18); pointer-events: none; }
 .cal-pop[hidden] { display: none; }
 .cal-pop-head { font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--muted); }
+.cal-pop-detail { font-size: 11px; line-height: 15px; color: var(--muted); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .cal-pop-tail { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
 .cal-pop .chip { font-size: 12px; line-height: 17px; padding: 1px 5px; margin-top: 2px; white-space: normal; word-break: keep-all; overflow-wrap: anywhere; }

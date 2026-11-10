@@ -129,6 +129,12 @@
           const time = item.time ? `${item.time}${item.endTime ? `–${item.endTime}` : ''} ` : '';
           row.textContent = item.source === 'todo' ? `${item.done ? '☑' : '☐'} ${item.title}` : `${time}${item.title}`;
           if (item.color) row.style.setProperty('--gc', item.color);
+          if (item.detail) { // 칩 설명 글에 있던 메모도 여기서
+            const det = document.createElement('div');
+            det.className = 'cal-pop-detail';
+            det.textContent = item.detail;
+            row.append(det);
+          }
           box.append(row);
         }
         box.hidden = false;
@@ -218,6 +224,8 @@
         more.className = 'chip more';
         more.textContent = `+${list.length - limit}`;
         cell.append(more);
+        // 이 칸은 미리보기가 다 보여 주니, 칩마다 뜨는 브라우저 설명 글은 뺀다 (겹쳐 뜨지 않게)
+        for (const c of cell.querySelectorAll('.chip')) c.removeAttribute('title');
         // 마우스를 그 칸에 잠시 올리면 그날 전체 목록을 띄운다 (누르지 않아도)
         cell.addEventListener('mouseenter', (e) => { if (e.buttons === 0) pop.show(cell, key, list); });
         cell.addEventListener('mouseleave', () => pop.hide());
