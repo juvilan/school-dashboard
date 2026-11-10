@@ -961,6 +961,11 @@ body.docked .dock-card.drawer:hover { box-shadow: -8px 0 24px rgb(0 0 0 / .18); 
 .pip-l b { color: var(--muted); font-weight: 600; }
 .pip-l.past { opacity: .45; }
 .pip-l.cur { border-color: var(--accent); color: var(--accent); }
+.pip-events { margin-bottom: 8px; }
+.pip-ev { display: flex; align-items: baseline; gap: 6px; padding: 3px 0 3px 6px; border-left: 3px solid var(--gc, var(--google)); border-bottom: 1px solid var(--line); font-size: 13px; }
+.pip-ev b { flex: none; font-size: 12px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pip-ev span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pip-ev.past { opacity: .45; }
 .pip-sub { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 2px; }
 .pip-todo { margin: 0; display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
 .pip-todo span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
