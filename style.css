@@ -1143,3 +1143,16 @@ button.pet-paw:hover { opacity: 1; }
 .pet-mark.jump { animation: pet-jump .8s ease-out; }
 @media (prefers-reduced-motion: reduce) { .pet-body.jump, .pet-fx.go, .pet-home.sleeping .pet-z, .pet-mark.jump { animation: none; } }
 @media print { .pet-home, .pet-paw, .pet-mark { display: none !important; } }
+
+/* 같이 사는 친구 (개인판): 주인공 옆에 나란히, 조금씩 겹쳐 앉음 */
+.pet-crew { position: absolute; inset: 0; pointer-events: none; }
+.pet-friend { position: absolute; bottom: 0; width: var(--ps); height: var(--ps); right: calc(var(--ps) * .78 * (var(--i) + 1)); }
+.pet-home.bl .pet-friend, .pet-home.tl .pet-friend { right: auto; left: calc(var(--ps) * .78 * (var(--i) + 1)); }
+.pet-fam { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }
+.pet-fam-row { display: flex; gap: 4px; align-items: center; }
+.pet-fam-row .pet-name { flex: 1; min-width: 0; font-weight: 400; border-color: var(--line); }
+.pet-fam-kind { max-width: 110px; font-size: 12px; }
+.pet-pip.crew { display: flex; flex-direction: row-reverse; width: auto; }
+.pet-pip.crew .pet-img { position: relative; inset: auto; flex: none; width: 64px; height: 64px; }
+.pet-pip.crew .pet-img + .pet-img { margin-right: -14px; }
+body.pet-pip-crew .pet-bubble.pet-pip-bubble { right: 6px; bottom: 64px; }

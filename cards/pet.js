@@ -37,6 +37,13 @@
   pet = load();
   const save = () => { if (!ls.set('dash-pet', JSON.stringify(pet))) stored = false; };
   const update = (fn) => { pet = load(); const r = fn(pet); pet = r.s; save(); return r; };
+  // 개인판: 같이 사는 친구들도 옆에 나란히 앉는다 (배·기분·간식은 함께 씀). 처음 한 번 우리 집 셋으로 맞춰 둠
+  const FAMILY = D.edition !== 'teacher';
+  // 맞춰 둔 표시는 따로도 적어 둔다 (옛 버전 탭이 저장하면서 friends 를 지워도 처음 설정이 다시 돌지 않게)
+  if (FAMILY && !pet.famSet && !ls.get('dash-pet-fam')) update((s) => ({ s: { ...s, kind: 'russian', name: '콩이', friends: [{ kind: 'russianGirl', name: '보리' }, { kind: 'ragdoll', name: '밤이' }], famSet: true } }));
+  if (FAMILY) ls.set('dash-pet-fam', '1');
+  const friends = () => (FAMILY ? pet.friends.filter((f) => A.pets[f.kind]) : []);
+  const friendName = (f) => f.name || A.pets[f.kind]?.name || '친구';
   const savedUi = readJson('dash-pet-ui') || {};
   const ui = {
     corner: CORNERS.includes(savedUi.corner) ? savedUi.corner : 'br',
@@ -64,7 +71,8 @@
   const zz = el('div', 'pet-z', 'z');
   const fx = el('div', 'pet-fx');
   fx.hidden = true;
-  body.append(bubble, zz, fx, img, hit);
+  const crew = el('div', 'pet-crew');
+  body.append(crew, bubble, zz, fx, img, hit);
   const panel = el('div', 'pet-panel');
   panel.id = 'pet-panel';
   panel.hidden = true;
@@ -109,6 +117,7 @@
     home.hidden = ui.hidden;
     paw.hidden = !ui.hidden;
     img.style.backgroundImage = `url(${A.pets[pet.kind].src})`;
+    paintCrew();
     document.documentElement.style.setProperty('--nf', A.frames.length);
     // 아래쪽 구석에 있으면 그쪽 기둥 아래를 동물 크기만큼 비워 둔다 (AI 대화 입력칸 등을 가리지 않게)
     const room = ui.hidden || !/^b/.test(ui.corner) ? '' : ui.corner === 'br' ? 'r' : 'l';
@@ -124,14 +133,69 @@
     spot();
     hit.setAttribute('aria-label', `${petName()} (누르면 돌보기, 끌면 다른 구석으로)`);
   }
+  // 친구들: 주인공 왼쪽(왼쪽 구석이면 오른쪽)에 나란히. 누르면 그 친구를 쓰다듬기
+  function paintCrew() {
+    const list = friends();
+    home.classList.toggle('crew', list.length > 0);
+    while (crew.childElementCount > list.length) crew.lastChild.remove();
+    while (crew.childElementCount < list.length) {
+      const j = crew.childElementCount;
+      const f = el('div', 'pet-friend');
+      f.style.setProperty('--i', j);
+      const b = el('button', 'pet-hit pet-hit-f');
+      b.type = 'button';
+      b.addEventListener('click', () => patFriend(j));
+      f.append(el('div', 'pet-img'), b);
+      crew.append(f);
+    }
+    list.forEach((f, j) => {
+      const c = crew.children[j];
+      c.firstChild.style.backgroundImage = `url(${A.pets[f.kind].src})`;
+      c.lastChild.setAttribute('aria-label', `${friendName(f)} (누르면 쓰다듬기)`);
+      c.lastChild.title = friendName(f);
+      c.dataset.f = '';
+    });
+    crewShown = '';
+  }
+  let crewShown = '';
+  // 가만히 있을 땐 친구마다 깜빡임·꼬리 박자를 달리, 나머지(걷기·밥·기쁨·잠)는 같이
+  function crewFrames(name) {
+    return friends().map((_, j) => {
+      if (!['idle', 'blink', 'wag'].includes(name) || reduced) return name;
+      const o = n + (j + 1) * 17, c = o % 60;
+      if (c >= 30 && c < 38) return c % 2 ? 'wag' : 'idle';
+      return o % 25 === 0 ? 'blink' : 'idle';
+    });
+  }
+  const STILL = { side: 'idle', walk0: 'idle', walk1: 'idle', walk2: 'idle', walk3: 'idle', eat1: 'happy', eat2: 'happy', wave0: 'happy', wave1: 'happy' };
+  function showCrew(name) {
+    const fr = crewFrames(name);
+    const key = fr.join();
+    if (key === crewShown) return;
+    crewShown = key;
+    fr.forEach((f, j) => {
+      crew.children[j]?.firstChild.style.setProperty('--f', F[f] ?? 0);
+      pip?.crew[j]?.style.setProperty('--f', F[STILL[f] || f] ?? 0);
+    });
+  }
+  function patFriend(j) {
+    const f = friends()[j];
+    if (!f) return;
+    const r = update((s) => L.pat(s, Date.now()));
+    relook();
+    say(`${friendName(f)}: ${r.say}`);
+    if (r.ok) { react('happy', 1200); float('heart'); }
+    renderSoft();
+  }
   let shown = -1;
   function show(name) {
+    showCrew(name);
     const i = F[name] ?? 0;
     if (i === shown) return;
     shown = i;
     img.style.setProperty('--f', i);
     // 칸 위 동물은 걷기·밥 먹기 대신 가만히·기쁨
-    const mi = F[{ side: 'idle', walk0: 'idle', walk1: 'idle', walk2: 'idle', walk3: 'idle', eat1: 'happy', eat2: 'happy', wave0: 'happy', wave1: 'happy' }[name] || name] ?? 0;
+    const mi = F[STILL[name] || name] ?? 0;
     for (const k in marks) marks[k].i.style.setProperty('--f', marks[k].hug ? (FF[FACE_OF[name] || 'idle'] ?? 0) : mi);
     if (pip) pip.img.style.setProperty('--f', mi); // 작은 창에선 걷지 않고 제자리
   }
@@ -290,10 +354,28 @@
   }
 
   // ---- 작은 창(pip.js)에도 오른쪽 아래에 앉아 있기. 누르면 쓰다듬기, 말풍선도 같이 ----
-  let pip = null; // { w, box, img, bubble }
+  let pip = null; // { w, box, img, bubble, crew: [친구 그림] }
   function pipPaint() {
     if (!pip) return;
     pip.img.style.backgroundImage = `url(${A.pets[pet.kind].src})`;
+    const list = friends();
+    const sig = list.map((f) => f.kind).join();
+    if (sig !== pip.sig) {
+      pip.sig = sig;
+      for (const c of pip.crew.splice(0)) c.remove();
+      list.forEach((f, j) => {
+        const c = pip.w.document.createElement('div');
+        c.className = 'pet-img';
+        c.style.backgroundImage = `url(${A.pets[f.kind].src})`;
+        c.addEventListener('click', (e) => { e.stopPropagation(); patFriend(j); });
+        pip.box.append(c);
+        pip.crew.push(c);
+      });
+    }
+    pip.box.classList.toggle('crew', list.length > 0);
+    pip.box.style.setProperty('--n', list.length + 1);
+    pip.w.document.body.classList.toggle('pet-pip-crew', list.length > 0);
+    crewShown = '';
     pip.box.hidden = ui.hidden;
     pip.box.title = `${petName()} (누르면 쓰다듬기)`;
     shown = -1;
@@ -315,7 +397,7 @@
       doc.body.append(pb, box);
       doc.documentElement.style.setProperty('--nf', A.frames.length);
       box.addEventListener('click', () => doAct((s) => L.pat(s, Date.now()), 'happy', 1200, null));
-      pip = { w, box, img: pimg, bubble: pb };
+      pip = { w, box, img: pimg, bubble: pb, crew: [] };
       w.setInterval(() => { if (document.hidden) talkCheck(); }, 30 * 1000); // 큰 창을 내려 둔 동안 알려 주기
       pipPaint();
     }
@@ -433,9 +515,48 @@
       button('small-btn', '숨기기', 'hide', () => { closePanel(false); ui.hidden = true; saveUi(); place(); run(); paw.focus(); }),
       el('span', 'muted small', `동물을 끌어서 옮겨도 돼요. 칸 위: 시간표의 지금 수업(쉬는 시간엔 다음 수업)${marks.cal ? '·달력의 오늘 칸' : ''}. 알려 주기: 수업 5분 전, 일정 10분 전, 11시 점심 메뉴, 마감 할 일(아침·오후 3시), 오늘 일정, 수업 끝·퇴근, 하루 한마디, 가끔 혼잣말 (수업 중엔 조용히).`),
     );
+    if (FAMILY) more.append(famBox());
     more.append(pick, spots, opts);
     panel.append(more);
     if (focusKey) panel.querySelector(`[data-pk="${focusKey}"]`)?.focus();
+  }
+  // 같이 사는 친구: 이름·종류 고치기, 빼기, 더하기 (두 마리까지)
+  function famBox() {
+    const box = el('div', 'pet-fam');
+    box.append(el('span', 'muted small', '같이 사는 친구 (배·기분·간식은 함께)'));
+    const setF = (fn, redraw = true) => {
+      update((s) => ({ s: { ...s, friends: fn(s.friends.map((f) => ({ ...f }))) } }));
+      place();
+      if (!redraw) return;
+      const had = panel.contains(document.activeElement);
+      renderPanel();
+      if (had && !panel.contains(document.activeElement)) (panel.querySelector('[data-pk="fadd"]') || panel.querySelector('[data-pk="fdel-0"]') || panel.querySelector('[data-pk="more"]'))?.focus();
+    };
+    pet.friends.forEach((f, j) => {
+      const row = el('div', 'pet-fam-row');
+      const nm = el('input', 'pet-name');
+      nm.maxLength = 12;
+      nm.placeholder = A.pets[f.kind]?.name || '';
+      nm.value = f.name;
+      nm.dataset.pk = `fname-${j}`;
+      nm.setAttribute('aria-label', `친구 ${j + 1} 이름`);
+      nm.addEventListener('change', () => setF((fs) => { if (fs[j]) fs[j].name = nm.value.trim().slice(0, 12); return fs; }, false)); // 다시 그리면 누르던 버튼이 사라짐
+      const kind = el('select', 'pet-fam-kind');
+      kind.dataset.pk = `fkind-${j}`;
+      kind.setAttribute('aria-label', `친구 ${j + 1} 종류`);
+      for (const k of L.FRIEND_KINDS) {
+        if (!A.pets[k]) continue;
+        const o = el('option', null, A.pets[k].name);
+        o.value = k;
+        o.selected = k === f.kind;
+        kind.append(o);
+      }
+      kind.addEventListener('change', () => setF((fs) => { if (fs[j]) fs[j].kind = kind.value; return fs; }));
+      row.append(nm, kind, button('ghost small-btn', '빼기', `fdel-${j}`, () => setF((fs) => fs.filter((_, i) => i !== j))));
+      box.append(row);
+    });
+    if (pet.friends.length < L.FRIEND_MAX) box.append(button('small-btn', '친구 더하기', 'fadd', () => setF((fs) => [...fs, { kind: 'ragdoll', name: '' }])));
+    return box;
   }
   // 저절로 다시 그릴 때(1분마다·할 일 변경·다른 탭)는 창 안을 쓰고 있으면 건드리지 않는다
   const renderSoft = () => { if (!panel.contains(document.activeElement)) renderPanel(); };
@@ -525,9 +646,13 @@
   window.addEventListener('storage', (e) => {
     if (e.key !== 'dash-pet' || !stored) return;
     const kind = pet.kind;
+    const prev = pet;
     pet = load();
+    // 옛 버전 탭이 친구 칸을 모르고 저장했으면 이 탭의 친구를 다시 적어 둠
+    if (FAMILY && prev.famSet && !pet.famSet) { pet = { ...pet, friends: prev.friends, famSet: true }; save(); }
     relook();
-    if (kind !== pet.kind) { place(); shown = -1; }
+    if (kind !== pet.kind) shown = -1;
+    place();
     renderSoft();
   });
 
@@ -565,8 +690,8 @@
     lastTalk = Date.now();
     speak(t.text, t.urgent ? 15000 : 10000, t.mood === 'wave' ? 'wave' : t.mood === 'worried' ? 'worried' : 'happy');
   }
-  const speak = (text, ms, kind) => {
-    say(`${pet.name ? `${pet.name}: ` : ''}${text}`, ms);
+  const speak = (text, ms, kind, who = pet.name) => {
+    say(`${who ? `${who}: ` : ''}${text}`, ms);
     react(kind, kind === 'wave' ? 2800 : 1600);
   };
   // 할 말이 없으면 가끔 혼잣말 (낮에만, 탭이 여러 개여도 25분에 한 번쯤)
@@ -578,7 +703,9 @@
     if (now - Math.max(last, lastTalk) < 25 * 60e3 || Math.random() > 0.12) return;
     ls.set('dash-pet-chat', String(now));
     lastTalk = now;
-    speak(L.idleLine(pet, A.pets[pet.kind]?.kind, Math.random()), 6000, 'happy');
+    const fam = [{ kind: pet.kind, name: pet.name }, ...friends()];
+    const who = fam[Math.floor(Math.random() * fam.length)];
+    speak(L.idleLine(pet, A.pets[who.kind]?.kind, Math.random()), 6000, 'happy', who.name);
   }
   setInterval(talkCheck, 30 * 1000);
   setTimeout(talkCheck, 5000); // 처음 열었을 때 (자료가 들어온 뒤)

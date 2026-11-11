@@ -5,13 +5,15 @@
   const HOUR = 3600 * 1000;
   const RATE = { hunger: 100 / 48, mood: 100 / 72 };
   const KINDS = ['ragdoll', 'russian', 'corgi', 'maltese'];
+  const FRIEND_KINDS = [...KINDS, 'russianGirl']; // 같이 사는 친구 (개인판): 목걸이 한 러시안 블루도
+  const FRIEND_MAX = 2;
   const SNACK_DAY = 10;
   const SNACK_MAX = 20;
   const clamp = (v) => Math.max(0, Math.min(100, Number.isFinite(v) ? v : 0));
   const num = (v, d) => (Number.isFinite(v) ? v : d);
 
   function fresh(now, kind = 'ragdoll') {
-    return { v: 1, kind, name: '', hunger: 80, mood: 80, snacks: 3, last: now, patAt: 0, day: '', gotToday: 0, paid: [] };
+    return { v: 1, kind, name: '', friends: [], famSet: false, hunger: 80, mood: 80, snacks: 3, last: now, patAt: 0, day: '', gotToday: 0, paid: [] };
   }
 
   // 저장해 둔 것을 읽을 때: 모양이 이상하면 고쳐서 쓴다
@@ -19,6 +21,11 @@
     if (!raw || typeof raw !== 'object') return fresh(now);
     const s = fresh(now, KINDS.includes(raw.kind) ? raw.kind : 'ragdoll');
     s.name = typeof raw.name === 'string' ? raw.name.slice(0, 12) : '';
+    s.friends = (Array.isArray(raw.friends) ? raw.friends : [])
+      .filter((f) => f && FRIEND_KINDS.includes(f.kind))
+      .slice(0, FRIEND_MAX)
+      .map((f) => ({ kind: f.kind, name: typeof f.name === 'string' ? f.name.slice(0, 12) : '' }));
+    s.famSet = raw.famSet === true;
     s.hunger = clamp(num(raw.hunger, 80));
     s.mood = clamp(num(raw.mood, 80));
     s.snacks = Math.max(0, Math.min(SNACK_MAX, Math.floor(num(raw.snacks, 3))));
@@ -168,7 +175,7 @@
     return pool[Math.min(pool.length - 1, Math.floor(Math.max(0, r) * pool.length))];
   }
 
-  const api = { KINDS, SNACK_DAY, SNACK_MAX, fresh, normalize, tick, feed, snack, pat, earn, newlyDone, look, words, pickTalk, cheer, idleLine, CHEERS };
+  const api = { KINDS, FRIEND_KINDS, FRIEND_MAX, SNACK_DAY, SNACK_MAX, fresh, normalize, tick, feed, snack, pat, earn, newlyDone, look, words, pickTalk, cheer, idleLine, CHEERS };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.PetLogic = api;
 })(typeof window === 'object' ? window : globalThis);
