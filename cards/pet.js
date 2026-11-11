@@ -77,18 +77,21 @@
   document.body.append(home, paw);
 
   // 칸 위에 올라가는 작은 동물 (64px, 누를 수 없음). 칸 안은 넘치면 잘려서 화면 위 따로 띄우고 칸 위치를 따라간다
-  const mark = (label) => {
-    const m = el('div', 'pet-mark');
+  // 시간표·달력 칸: 오른쪽 위 모서리에 얼굴만 걸치고 두 앞발로 테두리를 잡은 모양 (칸을 덜 가리게)
+  const mark = (label, hug) => {
+    const m = el('div', hug ? `pet-mark pet-hug ${hug}` : 'pet-mark');
     m.hidden = true;
     m.setAttribute('aria-hidden', 'true');
     m.title = label;
-    const i = el('div', 'pet-img');
-    m.append(i);
+    const i = el('div', hug ? 'pet-face' : 'pet-img');
+    if (hug) m.append(el('div', 'pet-paw-a'), i, el('div', 'pet-paw-b')); else m.append(i);
     m.addEventListener('animationend', () => m.classList.remove('jump'));
     document.body.append(m);
-    return { m, i };
+    return { m, i, hug };
   };
-  const marks = { tt: mark('지금 수업'), cal: mark('오늘') };
+  const marks = { tt: mark('지금 수업', 'tt'), cal: mark('오늘', 'cal') };
+  const FF = Object.fromEntries((A.faceFrames || []).map((n, i) => [n, i]));
+  const FACE_OF = { blink: 'blink', happy: 'happy', eat1: 'happy', eat2: 'happy', worried: 'worried', sleep: 'sleep' };
 
   const itemStyle = (e, name, scale) => {
     const i = Math.max(0, A.items.indexOf(name));
@@ -103,7 +106,11 @@
     home.hidden = ui.hidden;
     paw.hidden = !ui.hidden;
     img.style.backgroundImage = `url(${A.pets[pet.kind].src})`;
-    for (const k in marks) marks[k].i.style.backgroundImage = img.style.backgroundImage;
+    for (const k in marks) {
+      const { m, i, hug } = marks[k];
+      i.style.backgroundImage = hug ? `url(${A.pets[pet.kind].face})` : img.style.backgroundImage;
+      if (hug) for (const pw of m.querySelectorAll('.pet-paw-a, .pet-paw-b')) pw.style.backgroundImage = `url(${A.pets[pet.kind].paw})`;
+    }
     spot();
     hit.setAttribute('aria-label', `${petName()} (누르면 돌보기, 끌면 다른 구석으로)`);
   }
@@ -115,7 +122,7 @@
     img.style.setProperty('--f', i);
     // 칸 위 동물은 걷기·밥 먹기 대신 가만히·기쁨
     const mi = F[{ stepL: 'idle', stepR: 'idle', eat1: 'happy', eat2: 'happy' }[name] || name] ?? 0;
-    for (const k in marks) marks[k].i.style.setProperty('--f', mi);
+    for (const k in marks) marks[k].i.style.setProperty('--f', marks[k].hug ? (FF[FACE_OF[name] || 'idle'] ?? 0) : mi);
   }
 
   // 칸 찾기: 달력은 오늘 칸, 시간표는 이번 주를 보고 있을 때 지금 수업(쉬는 시간이면 다음 수업) 칸
@@ -154,9 +161,9 @@
       const ok = cell ? seen(cell, r) : false;
       m.hidden = !ok;
       if (!ok) continue;
-      const left = k === 'cal' ? r.right - 58 : r.left + r.width / 2 - 32;
-      m.style.left = `${Math.round(left)}px`;
-      m.style.top = `${Math.round(r.top - 64 + 18)}px`;
+      // 오른쪽 위 모서리에 얼굴, 앞발은 윗변과 오른쪽 변에. 달력은 오른쪽 위의 "+N" 을 가리지 않게 얼굴을 칸 바로 위로
+      m.style.left = `${Math.round(r.right - 34)}px`;
+      m.style.top = `${Math.round(r.top - (k === 'cal' ? 28 : 20))}px`;
     }
   }
   let spotQueued = false;
