@@ -161,9 +161,16 @@
       const ok = cell ? seen(cell, r) : false;
       m.hidden = !ok;
       if (!ok) continue;
-      // 오른쪽 위 모서리에 얼굴, 앞발은 윗변과 오른쪽 변에. 달력은 오른쪽 위의 "+N" 을 가리지 않게 얼굴을 칸 바로 위로
-      m.style.left = `${Math.round(r.right - 34)}px`;
-      m.style.top = `${Math.round(r.top - (k === 'cal' ? 28 : 20))}px`;
+      if (k === 'tt') { // 오른쪽 위 모서리에 얼굴, 앞발은 윗변과 오른쪽 변에
+        m.style.left = `${Math.round(r.right - 34)}px`;
+        m.style.top = `${Math.round(r.top - 20)}px`;
+        continue;
+      }
+      // 달력: 윗변 가운데 (날짜와 '+N' 사이). 칸이 넓은 화면(큰 모니터)이면 2배로
+      const sc = r.width >= 120 ? 2 : 1;
+      m.style.scale = sc === 1 ? '' : String(sc);
+      m.style.left = `${Math.round(r.left + r.width / 2 - 26 * sc)}px`;
+      m.style.top = `${Math.round(r.top - 28 * sc)}px`;
     }
   }
   let spotQueued = false;

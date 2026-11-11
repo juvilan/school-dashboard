@@ -1121,14 +1121,17 @@ button.pet-paw:hover { opacity: 1; }
 .pet-paw.tr, .pet-paw.tl { top: 52px; bottom: auto; }
 .pet-mark { position: fixed; z-index: 44; width: 64px; height: 64px; --ps: 64px; pointer-events: none; }
 .pet-mark[hidden] { display: none; }
-.pet-mark.pet-hug { width: 44px; height: 44px; }
+.pet-mark.pet-hug { width: 44px; height: 44px; transform-origin: 0 0; }
 .pet-face { position: absolute; left: 12px; top: 0; width: 32px; height: 32px; background-repeat: no-repeat; background-size: 160px 32px; background-position: calc(var(--f, 0) * -32px) 0; image-rendering: pixelated; filter: drop-shadow(0 1px 1px rgb(0 0 0 / .2)); }
-.pet-paw-a, .pet-paw-b { position: absolute; width: 7px; height: 5px; background-size: 7px 5px; image-rendering: pixelated; }
-.pet-paw-a { left: 6px; top: 17px; }
-.pet-paw-b { left: 29px; top: 33px; transform: rotate(90deg); }
-.pet-hug.cal { height: 52px; }
-.pet-hug.cal .pet-paw-a { top: 25px; }
-.pet-hug.cal .pet-paw-b { top: 41px; }
+.pet-paw-a, .pet-paw-b { position: absolute; width: 10px; height: 7px; background-size: 10px 7px; image-rendering: pixelated; filter: drop-shadow(0 1px 1px rgb(0 0 0 / .2)); }
+/* 시간표: 오른쪽 위 모서리 (칸 윗변 y=20, 오른쪽 변 x=34) */
+.pet-hug.tt .pet-paw-a { left: 1px; top: 17px; }
+.pet-hug.tt .pet-paw-b { left: 29px; top: 30px; transform: rotate(90deg); }
+/* 달력: 윗변 가운데에서 고개를 내밀고 두 앞발로 윗변을 잡음 (칸 윗변 y=28) */
+.pet-hug.cal { width: 52px; height: 32px; }
+.pet-hug.cal .pet-face { left: 10px; }
+.pet-hug.cal .pet-paw-a { left: 3px; top: 25px; }
+.pet-hug.cal .pet-paw-b { left: 39px; top: 25px; }
 .pet-mark.jump { animation: pet-jump .8s ease-out; }
 @media (prefers-reduced-motion: reduce) { .pet-body.jump, .pet-fx.go, .pet-home.sleeping .pet-z, .pet-mark.jump { animation: none; } }
 @media print { .pet-home, .pet-paw, .pet-mark { display: none !important; } }
