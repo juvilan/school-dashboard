@@ -1047,8 +1047,9 @@ body.docked .dock-card.drawer:hover { box-shadow: -8px 0 24px rgb(0 0 0 / .18); 
 .cal-pop .chip { font-size: 12px; line-height: 17px; padding: 1px 5px; margin-top: 2px; white-space: normal; word-break: keep-all; overflow-wrap: anywhere; }
 
 /* ---- 키우기 동물 (pet.js): 화면 구석에 앉아 있음. 서랍·미리보기보다는 아래 ---- */
-.pet-home { position: fixed; z-index: 45; --ps: 128px; pointer-events: none; }
+.pet-home { position: fixed; z-index: 45; --ps: 96px; pointer-events: none; } /* 그림이 96칸이라 1배 */
 .pet-home.small { --ps: 64px; }
+.pet-home.small .pet-img { image-rendering: auto; } /* 2/3로 줄일 땐 도트가 들쭉날쭉하지 않게 부드럽게 */
 .pet-home.br { right: 14px; bottom: 4px; }
 .pet-home.bl { left: 14px; bottom: 4px; }
 .pet-home.tr { right: 14px; top: 52px; }
