@@ -41,9 +41,12 @@
   const FAMILY = D.edition !== 'teacher';
   // 맞춰 둔 표시는 따로도 적어 둔다 (옛 버전 탭이 저장하면서 friends 를 지워도 처음 설정이 다시 돌지 않게)
   if (FAMILY && !pet.famSet && !ls.get('dash-pet-fam')) update((s) => ({ s: { ...s, kind: 'russian', name: '콩이', sex: 'm', friends: [{ kind: 'russian', sex: 'f', name: '보리' }, { kind: 'ragdoll', sex: 'f', name: '밤이' }], famSet: true } }));
-  // 암수가 생기기 전에 맞춘 집: 밤이도 암컷으로
-  if (FAMILY && ls.get('dash-pet-fam') === '1') update((s) => ({ s: { ...s, friends: s.friends.map((f) => (f.kind === 'ragdoll' && f.name === '밤이' ? { ...f, sex: 'f' } : f)) } }));
-  if (FAMILY) ls.set('dash-pet-fam', '2');
+  // 맞춘 뒤에 바뀐 것들을 차례로 (숫자는 dash-pet-fam): 2 밤이도 암컷, 3 보리·밤이 전용 그림, 4 콩이 전용 그림 (사진 보고 그림)
+  const famV = FAMILY ? Number(ls.get('dash-pet-fam')) || 0 : 4;
+  if (famV < 2) update((s) => ({ s: { ...s, friends: s.friends.map((f) => (f.kind === 'ragdoll' && f.name === '밤이' ? { ...f, sex: 'f' } : f)) } }));
+  if (famV < 3) update((s) => ({ s: { ...s, friends: s.friends.map((f) => (f.name === '보리' && f.kind === 'russian' ? { ...f, art: 'bori' } : f.name === '밤이' && f.kind === 'ragdoll' ? { ...f, art: 'bami' } : f)) } }));
+  if (famV < 4) update((s) => ({ s: { ...s, art: s.kind === 'russian' && s.name === '콩이' ? 'kongi' : s.art } }));
+  if (FAMILY) ls.set('dash-pet-fam', '4');
   const friends = () => (FAMILY ? pet.friends.filter((f) => A.pets[f.kind]) : []);
   const friendName = (f) => f.name || A.pets[f.kind]?.name || '친구';
   const savedUi = readJson('dash-pet-ui') || {};
@@ -56,7 +59,7 @@
   };
   const saveUi = () => ls.set('dash-pet-ui', JSON.stringify(ui));
   // 그림: 암수에 따라 (암컷은 목걸이, 말티즈 수컷은 리본 없음)
-  const artOf = (p) => A.pets[L.artKey(p.kind, p.sex)] || A.pets[p.kind];
+  const artOf = (p) => (p.art && A.pets[p.art]) || A.pets[L.artKey(p.kind, p.sex)] || A.pets[p.kind];
   const snackItem = () => (A.pets[pet.kind]?.kind === 'dog' ? 'bone' : 'fish');
   const petName = () => pet.name || A.pets[pet.kind]?.name || '친구';
 
@@ -371,7 +374,7 @@
     if (!pip) return;
     pip.img.style.backgroundImage = `url(${artOf(pet).src})`;
     const list = friends();
-    const sig = list.map((f) => L.artKey(f.kind, f.sex)).join();
+    const sig = list.map((f) => f.art || L.artKey(f.kind, f.sex)).join();
     if (sig !== pip.sig) {
       pip.sig = sig;
       for (const c of pip.crew.splice(0)) c.remove();
@@ -500,7 +503,7 @@
       if (!A.pets[k]) continue;
       const b = button(`pet-pick-b${k === pet.kind ? ' on' : ''}`, '', `pick-${k}`, () => {
         if (k === pet.kind) return;
-        update((s) => ({ s: { ...s, kind: k, name: '' } })); // 친구를 바꾸면 이름은 새로 (배·기분·간식은 이어감)
+        update((s) => ({ s: { ...s, kind: k, name: '', art: '' } })); // 친구를 바꾸면 이름은 새로 (배·기분·간식은 이어감)
         place(); shown = -1; frame(); say('안녕하세요!'); renderPanel();
       });
       b.title = A.pets[k].name;
@@ -516,7 +519,7 @@
     for (const [x, label] of [['m', '수컷'], ['f', '암컷']]) {
       const b = button(`small-btn pet-spot${pet.sex === x ? ' on' : ''}`, label, `sex-${x}`, () => {
         if (pet.sex === x) return;
-        update((s) => ({ s: { ...s, sex: x } }));
+        update((s) => ({ s: { ...s, sex: x, art: '' } }));
         place(); shown = -1; frame(); renderPanel();
       });
       b.setAttribute('aria-pressed', String(pet.sex === x));
@@ -575,12 +578,12 @@
         o.selected = k === f.kind;
         kind.append(o);
       }
-      kind.addEventListener('change', () => setF((fs) => { if (fs[j]) fs[j].kind = kind.value; return fs; }));
+      kind.addEventListener('change', () => setF((fs) => { if (fs[j]) { fs[j].kind = kind.value; fs[j].art = ''; } return fs; }));
       const sx = el('select', 'pet-fam-kind pet-fam-sex');
       sx.dataset.pk = `fsex-${j}`;
       sx.setAttribute('aria-label', `친구 ${j + 1} 성별`);
       for (const [x, label] of [['m', '수컷'], ['f', '암컷']]) { const o = el('option', null, label); o.value = x; o.selected = f.sex === x; sx.append(o); }
-      sx.addEventListener('change', () => setF((fs) => { if (fs[j]) fs[j].sex = sx.value; return fs; }));
+      sx.addEventListener('change', () => setF((fs) => { if (fs[j]) { fs[j].sex = sx.value; fs[j].art = ''; } return fs; }));
       row.append(nm, kind, sx, button('ghost small-btn', '빼기', `fdel-${j}`, () => setF((fs) => fs.filter((_, i) => i !== j))));
       box.append(row);
     });
@@ -674,19 +677,28 @@
   // 다른 탭이 바꾸면 따라감
   window.addEventListener('storage', (e) => {
     if (e.key !== 'dash-pet' || !stored) return;
-    const kind = L.artKey(pet.kind, pet.sex);
+    const kind = pet.art || L.artKey(pet.kind, pet.sex);
     const prev = pet;
     pet = load();
     // 옛 버전 탭이 친구 칸을 모르고 저장했으면 이 탭의 친구를 다시 적어 둠
     if (FAMILY && prev.famSet && !pet.famSet) { pet = { ...pet, friends: prev.friends, famSet: true }; save(); }
-    // 옛 버전 탭은 암수 칸을 모르고 지움: 이 탭이 알던 암수로 되돌려 적어 둠
+    // 옛 버전 탭은 모르는 칸(암수·전용 그림)을 지우고 저장함: 지워진 칸만, 이 탭이 알던 값으로 되돌려 적어 둠
     const raw = readJson('dash-pet');
-    if (raw && (!('sex' in raw) || (Array.isArray(raw.friends) && raw.friends.some((f) => f && !('sex' in f))))) {
-      pet = { ...pet, sex: raw.kind === prev.kind ? prev.sex : pet.sex, friends: pet.friends.map((f, j) => (prev.friends[j]?.kind === f.kind && !('sex' in (raw.friends?.[j] || {})) ? { ...f, sex: prev.friends[j].sex } : f)) };
-      save();
+    if (raw && typeof raw === 'object') {
+      let fixed = false;
+      const back = (r, cur, old) => { // r: 저장분 원본, cur: 읽은 값, old: 이 탭이 알던 값
+        if (!r || !old || r.kind !== old.kind) return cur;
+        const o = { ...cur };
+        if (!('sex' in r)) { o.sex = old.sex; fixed = true; }
+        if (!('art' in r) && o.sex === old.sex && old.art) { o.art = old.art; fixed = true; }
+        return o;
+      };
+      const main = back(raw, pet, prev);
+      const fr = pet.friends.map((f, j) => back(Array.isArray(raw.friends) ? raw.friends[j] : null, f, prev.friends[j]));
+      if (fixed) { pet = { ...main, friends: fr }; save(); }
     }
     relook();
-    if (kind !== L.artKey(pet.kind, pet.sex)) shown = -1;
+    if (kind !== (pet.art || L.artKey(pet.kind, pet.sex))) shown = -1;
     place();
     renderSoft();
   });

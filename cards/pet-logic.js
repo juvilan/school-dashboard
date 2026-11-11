@@ -17,7 +17,7 @@
   const num = (v, d) => (Number.isFinite(v) ? v : d);
 
   function fresh(now, kind = 'ragdoll') {
-    return { v: 1, kind, sex: sexOf(kind), name: '', friends: [], famSet: false, hunger: 80, mood: 80, snacks: 3, last: now, patAt: 0, day: '', gotToday: 0, paid: [] };
+    return { v: 1, kind, sex: sexOf(kind), art: '', name: '', friends: [], famSet: false, hunger: 80, mood: 80, snacks: 3, last: now, patAt: 0, day: '', gotToday: 0, paid: [] };
   }
 
   // 저장해 둔 것을 읽을 때: 모양이 이상하면 고쳐서 쓴다
@@ -25,12 +25,13 @@
     if (!raw || typeof raw !== 'object') return fresh(now);
     const s = fresh(now, KINDS.includes(raw.kind) ? raw.kind : 'ragdoll');
     s.sex = sexOf(s.kind, raw.sex);
+    s.art = typeof raw.art === 'string' && /^[a-z]{1,16}$/.test(raw.art) ? raw.art : ''; // 우리 집 아이 전용 그림
     s.name = typeof raw.name === 'string' ? raw.name.slice(0, 12) : '';
     s.friends = (Array.isArray(raw.friends) ? raw.friends : [])
       .map((f) => (f && f.kind === 'russianGirl' ? { ...f, kind: 'russian', sex: 'f' } : f)) // 처음 판의 목걸이 러시안 블루
       .filter((f) => f && KINDS.includes(f.kind))
       .slice(0, FRIEND_MAX)
-      .map((f) => ({ kind: f.kind, sex: sexOf(f.kind, f.sex), name: typeof f.name === 'string' ? f.name.slice(0, 12) : '' }));
+      .map((f) => ({ kind: f.kind, sex: sexOf(f.kind, f.sex), name: typeof f.name === 'string' ? f.name.slice(0, 12) : '', art: typeof f.art === 'string' && /^[a-z]{1,16}$/.test(f.art) ? f.art : '' })); // art: 우리 집 아이 전용 그림
     s.famSet = raw.famSet === true;
     s.hunger = clamp(num(raw.hunger, 80));
     s.mood = clamp(num(raw.mood, 80));
