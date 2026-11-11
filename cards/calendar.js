@@ -53,6 +53,13 @@
     if (again && !loading) { again = false; load(); }
   }
 
+  // 키우기 동물이 오늘 일정을 알려 줄 때 씀 (오늘이 불러온 범위 밖이면 null)
+  window.Dash.calToday = () => {
+    const t = seoul().ymd;
+    if (!range || range.from > t || range.to < t) return null;
+    return (L.itemsByDate(range.events, [], t, t)[t] || []).map((e) => ({ title: e.title, time: e.time, date: e.date, source: e.source })); // date: 시작일 (여러 날 일정)
+  };
+
   function itemsByDate(from, to) {
     const ok = range && range.from <= from && range.to >= to;
     return L.itemsByDate(ok ? range.events : [], state.data.todos, from, to);

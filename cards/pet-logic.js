@@ -80,7 +80,95 @@
     return v >= 80 ? '신나요' : v >= 50 ? '좋아요' : v >= 20 ? '심심해요' : '시무룩해요';
   }
 
-  const api = { KINDS, SNACK_DAY, SNACK_MAX, fresh, normalize, tick, feed, snack, pat, earn, newlyDone, look, words };
+  // ---- 알려 주기: 지금 할 말 하나 고르기 (같은 말은 하루 한 번) ----
+  // ctx: { minutes, weekday(0=일), tt: Dash.ttNow() 결과|null, todos: [{title,due,done}], today: 'YYYY-MM-DD',
+  //        events: 오늘 일정 [{title,time,source}]|null, lunch: 점심 메뉴 이름 [..]|null }
+  // said: 오늘 이미 한 말의 열쇠. 돌려주는 것: { key, text, mood: 'happy'|'worried', urgent } 또는 null
+  const hm = (t) => { const [h, mm] = String(t).split(':').map(Number); return h * 60 + mm; };
+  const few = (list, n) => list.slice(0, n).join(', ') + (list.length > n ? ` 외 ${list.length - n}개` : '');
+  function pickTalk(ctx, said) {
+    const m = Math.floor(ctx.minutes);
+    if (m < 6 * 60 + 30 || m >= 21 * 60) return null; // 밤에는 조용히
+    const has = (k) => said.includes(k);
+    const st = ctx.tt?.st;
+    const inLesson = st?.kind === 'class' && st.at?.lesson;
+    // 1. 다음 수업 5분 전 (수업 중이 아닐 때)
+    if (st?.next?.lesson && !inLesson) {
+      const until = hm(st.next.start) - m;
+      const key = `class-${st.next.period}`;
+      if (until >= 1 && until <= 5 && !has(key)) {
+        const l = st.next.lesson;
+        const what = [l.klass, l.subject].filter(Boolean).join(' ');
+        return { key, text: [`${until}분 뒤 ${st.next.period}교시예요`, what, l.room].filter(Boolean).join(' · '), mood: 'happy', urgent: true };
+      }
+    }
+    // 2. 시각이 있는 일정 10분 전 (여러 날 일정은 첫날만)
+    for (const e of ctx.events || []) {
+      if (!e.time || e.source === 'todo' || (e.date && e.date !== ctx.today)) continue;
+      const until = hm(e.time) - m;
+      const key = `ev-${e.time}-${e.title}`;
+      if (until >= 1 && until <= 10 && !has(key)) return { key, text: `${until}분 뒤 ${e.title} (${e.time})`, mood: 'happy', urgent: true };
+    }
+    // 수업 중(화면을 교실 TV에 띄워 둘 수 있음)에는 급한 것 말고는 쉬는 시간으로 미룬다
+    if (inLesson) return null;
+    // 3. 점심 메뉴: 11시~12시 10분
+    if (ctx.lunch?.length && m >= 11 * 60 && m < 12 * 60 + 10 && !has('meal')) {
+      return { key: 'meal', text: `오늘 점심은 ${few(ctx.lunch, 3)}!`, mood: 'happy' };
+    }
+    // 기운 나는 한마디: 하루 한 번 (오후 2시 전에 처음 볼 때)
+    if (m < 14 * 60 && !has('cheer')) return { key: 'cheer', text: cheer(ctx.today, ctx.weekday), mood: 'wave' };
+    // 4. 마감 할 일: 아침에 한 번, 오후 3시에 남았으면 한 번 더
+    const due = (ctx.todos || []).filter((t) => !t.done && t.due && t.due <= ctx.today).map((t) => t.title);
+    if (due.length) {
+      if (m >= 15 * 60 && !has('due-pm')) return { key: 'due-pm', text: `마감 할 일이 아직 ${due.length}개 남았어요: ${few(due, 2)}`, mood: 'worried' };
+      if (m >= 7 * 60 + 30 && m < 15 * 60 && !has('due-am')) return { key: 'due-am', text: `오늘 마감 할 일 ${due.length}개: ${few(due, 2)}`, mood: 'worried' };
+    }
+    // 5. 오늘 일정: 낮에 처음 볼 때 한 번
+    const evs = (ctx.events || []).filter((e) => e.source !== 'todo').map((e) => (e.time && (!e.date || e.date === ctx.today) ? `${e.title} (${e.time})` : e.title));
+    if (evs.length && m < 18 * 60 && !has('events')) return { key: 'events', text: `오늘 일정: ${few(evs, 2)}`, mood: 'happy' };
+    // 6. 수업이 다 끝났을 때, 7. 평일 퇴근 시간 (4시 40분)
+    // 퇴근 인사는 수업이 있는 날만 (시간표를 안 넣었으면 평일 모두). 쉬는 날(방학·공휴일)엔 시간표 상태가 수업 없음
+    const noTimetable = !ctx.tt || ctx.tt.text === '시간표 입력 전';
+    const workday = ctx.weekday >= 1 && ctx.weekday <= 5 && (noTimetable || (ctx.tt.lessons || []).some((l) => l.lesson));
+    if (workday && m >= 16 * 60 + 40 && m < 18 * 60 && !has('bye')) return { key: 'bye', text: '퇴근 시간이에요. 오늘도 수고했어요!', mood: 'wave' };
+    if (st?.kind === 'after' && m < 16 * 60 + 40 && !has('after')) return { key: 'after', text: '오늘 수업 끝! 수고했어요', mood: 'wave' };
+    return null;
+  }
+
+  // 하루 한마디: 날마다 차례로 (한 바퀴 돌 때까지 겹치지 않음). 월·금·주말은 그날에 맞는 말
+  const CHEERS = [
+    '오늘도 와 줘서 고마워요. 천천히 시작해요', '잘하고 있어요. 진짜로요!', '오늘 하루도 반짝일 거예요',
+    '물 한 잔 마시고 시작해요', '작은 일 하나부터 끝내 봐요. 간식은 제가 받을게요', '선생님 덕분에 누군가는 오늘 웃을 거예요',
+    '완벽하지 않아도 괜찮아요', '어제보다 조금 더 편한 하루가 되길', '힘들면 잠깐 쉬어도 돼요. 제가 지키고 있을게요',
+    '오늘의 목표: 점심 맛있게 먹기!', '숨 한 번 크게 쉬고, 출발!', '선생님은 생각보다 훨씬 멋진 사람이에요',
+    '오늘도 한 걸음씩, 같이 가요', '웃는 얼굴이 제일 잘 어울려요', '바쁜 날일수록 어깨 한 번 쭉 펴요',
+    '오늘 하루, 저는 선생님 편이에요', '지난번에도 해냈잖아요. 이번에도 할 수 있어요', '좋은 일이 하나쯤은 꼭 생길 거예요',
+    '커피만 말고 물도 마셔 주세요', '수업 하나하나가 다 소중해요', '마음이 무거우면 저를 쓰다듬어 주세요',
+    '할 수 있는 만큼만 해도 충분해요', '선생님이 있어서 교실이 따뜻해요', '오늘도 무사히, 그리고 즐겁게!',
+    '창밖 한 번 보고 시작해요. 날씨가 어떤가요?', '조금 늦어도 괜찮아요. 꾸준한 게 멋진 거예요', '오늘 애쓸 나에게 미리 박수!',
+    '쉬는 시간엔 진짜로 쉬어요', '선생님 최고! 제가 보장해요', '오늘은 나를 한 번 칭찬해 주기로 해요',
+  ];
+  function cheer(ymd, weekday) {
+    if (weekday === 1) return '월요일이에요. 이번 주도 천천히 같이 가요';
+    if (weekday === 5) return '금요일! 조금만 힘내면 주말이에요';
+    if (weekday === 0 || weekday === 6) return '쉬는 날에도 들러 줬네요. 오늘은 푹 쉬어요';
+    const day = Math.floor(Date.parse(`${ymd}T00:00:00Z`) / 86400e3) || 0;
+    return CHEERS[((day % CHEERS.length) + CHEERS.length) % CHEERS.length];
+  }
+
+  // 할 말이 없을 때 가끔 하는 혼잣말 (배·기분·간식에 맞게). r 은 0~1 사이 난수
+  function idleLine(s, kind, r) {
+    const pool = [];
+    if (s.hunger < 50) pool.push('배가 출출해요… 밥 주세요', '꼬르륵…', '밥 먹을 시간 아닌가요?');
+    if (s.snacks > 0) pool.push('간식 주세요~', '간식 하나만요… 네?');
+    else pool.push('할 일 하나 끝내면 간식 주세요~');
+    if (s.mood < 60) pool.push('쓰다듬어 주세요', '심심해요. 놀아 주세요');
+    pool.push(...(kind === 'dog' ? ['멍멍!', '꼬리 흔드는 중이에요', '산책 가고 싶어요'] : ['냐옹~', '골골골…', '햇볕 쬐고 싶어요']));
+    pool.push('뭐 하고 계세요?', '저 여기 있어요!', '기지개 쭉~');
+    return pool[Math.min(pool.length - 1, Math.floor(Math.max(0, r) * pool.length))];
+  }
+
+  const api = { KINDS, SNACK_DAY, SNACK_MAX, fresh, normalize, tick, feed, snack, pat, earn, newlyDone, look, words, pickTalk, cheer, idleLine, CHEERS };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.PetLogic = api;
 })(typeof window === 'object' ? window : globalThis);

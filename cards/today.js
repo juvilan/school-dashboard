@@ -176,5 +176,7 @@
 
   render();
   window.Dash.refreshToday = load; // 배포판: 학교를 바꾸면 바로 다시
+  // 키우기 동물이 점심 메뉴를 알려 줄 때 씀 (오늘 자료가 아니면 null)
+  window.Dash.todayLunch = () => (data && data.date === localDate() && Array.isArray(data.meal?.lunch) ? data.meal.lunch.map((x) => x.name).filter(Boolean) : null);
   window.addEventListener('DOMContentLoaded', load);
 })();

@@ -43,6 +43,7 @@
     size: savedUi.size === 'small' ? 'small' : 'big',
     hidden: savedUi.hidden === true,
     marks: savedUi.marks !== false, // 시간표 지금 칸·달력 오늘 칸에도 올라가기
+    talk: savedUi.talk !== false, // 수업·일정·급식·마감·퇴근을 말풍선으로 알려 주기
   };
   const saveUi = () => ls.set('dash-pet-ui', JSON.stringify(ui));
   const snackItem = () => (A.pets[pet.kind]?.kind === 'dog' ? 'bone' : 'fish');
@@ -89,9 +90,11 @@
     document.body.append(m);
     return { m, i, hug };
   };
-  const marks = { tt: mark('지금 수업', 'tt'), cal: mark('오늘', 'cal') };
+  // 달력: 학교용(웹판)만 오늘 칸 안 오른쪽 아래에 동물이 앉아 있음. 개인판은 시간표에만
+  const marks = { tt: mark('지금 수업', 'tt') };
+  if (D.edition === 'teacher') marks.cal = mark('오늘', null);
   const FF = Object.fromEntries((A.faceFrames || []).map((n, i) => [n, i]));
-  const FACE_OF = { blink: 'blink', happy: 'happy', eat1: 'happy', eat2: 'happy', worried: 'worried', sleep: 'sleep' };
+  const FACE_OF = { blink: 'blink', happy: 'happy', eat1: 'happy', eat2: 'happy', wave0: 'happy', wave1: 'happy', worried: 'worried', sleep: 'sleep', yawn: 'sleep' };
 
   const itemStyle = (e, name, scale) => {
     const i = Math.max(0, A.items.indexOf(name));
@@ -122,7 +125,7 @@
     shown = i;
     img.style.setProperty('--f', i);
     // 칸 위 동물은 걷기·밥 먹기 대신 가만히·기쁨
-    const mi = F[{ side: 'idle', walk0: 'idle', walk1: 'idle', walk2: 'idle', walk3: 'idle', eat1: 'happy', eat2: 'happy' }[name] || name] ?? 0;
+    const mi = F[{ side: 'idle', walk0: 'idle', walk1: 'idle', walk2: 'idle', walk3: 'idle', eat1: 'happy', eat2: 'happy', wave0: 'happy', wave1: 'happy' }[name] || name] ?? 0;
     for (const k in marks) marks[k].i.style.setProperty('--f', marks[k].hug ? (FF[FACE_OF[name] || 'idle'] ?? 0) : mi);
   }
 
@@ -143,12 +146,13 @@
   }
   // 칸의 윗변이 보이는지: 카드와 (주간 달력처럼) 따로 스크롤되는 칸 묶음 안, 위쪽 고정 막대 아래
   const inside = (r, box) => r.top >= box.top - 2 && r.top <= box.bottom - 8 && r.left + r.width / 2 >= box.left && r.left + r.width / 2 <= box.right;
-  function seen(cell, r) {
+  const calSize = (r) => (r.width >= 150 && r.height >= 150 ? 96 : r.width >= 100 && r.height >= 100 ? 64 : 48);
+  function seen(cell, r, above = 46) { // above: 칸 윗변 위로 튀어나온 높이
     if (!r || r.width <= 0 || r.height <= 0) return false;
     if (!inside(r, { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth })) return false;
     for (const box of [cell.closest('.cal-grid'), cell.closest('.card')]) if (box && !inside(r, box.getBoundingClientRect())) return false;
     const bar = document.querySelector('.top');
-    if (bar && /sticky|fixed/.test(getComputedStyle(bar).position) && r.top - 46 < bar.getBoundingClientRect().bottom) return false;
+    if (bar && /sticky|fixed/.test(getComputedStyle(bar).position) && r.top - above < bar.getBoundingClientRect().bottom) return false;
     return true;
   }
   // 칸 윗변에 걸터앉게: 아래쪽 18px 만 칸에 들어감. 칸이 안 보이면(접힘·스크롤 밖) 숨김
@@ -159,7 +163,8 @@
       const { m } = marks[k];
       const cell = on ? targetOf(k) : null;
       const r = cell?.getBoundingClientRect();
-      const ok = cell ? seen(cell, r) : false;
+      const size = r ? calSize(r) : 48;
+      const ok = cell ? (k === 'cal' && r ? seen(cell, { top: r.bottom - size - 3, left: r.left, width: r.width, height: r.height }, 0) : seen(cell, r)) : false;
       m.hidden = !ok;
       if (!ok) continue;
       if (k === 'tt') { // 오른쪽 위 모서리에 얼굴, 앞발은 윗변과 오른쪽 변에
@@ -167,11 +172,12 @@
         m.style.top = `${Math.round(r.top - 20)}px`;
         continue;
       }
-      // 달력: 윗변 가운데 (날짜와 '+N' 사이). 칸이 넓은 화면(큰 모니터)이면 2배로
-      const sc = r.width >= 120 ? 2 : 1;
-      m.style.scale = sc === 1 ? '' : String(sc);
-      m.style.left = `${Math.round(r.left + r.width / 2 - 26 * sc)}px`;
-      m.style.top = `${Math.round(r.top - 28 * sc)}px`;
+      // 달력: 칸 안 오른쪽 아래에 앉음. 칸이 크면 크게 (96칸 그림의 1/2·2/3·1배)
+      m.style.setProperty('--ps', `${size}px`);
+      m.style.width = m.style.height = `${size}px`;
+      m.classList.toggle('soft', size === 64);
+      m.style.left = `${Math.round(r.right - size - 4)}px`;
+      m.style.top = `${Math.round(r.bottom - size - 3)}px`;
     }
   }
   let spotQueued = false;
@@ -223,7 +229,7 @@
     mood = L.look(pet, seoul().minutes);
     home.classList.toggle('sleeping', mood === 'sleep' && !act);
   }
-  let act = null; // { kind: 'eat' | 'happy', until }
+  let act = null; // { kind: 'eat' | 'happy' | 'worried' | 'wave' | 'yawn', until }
   let n = 0;
   // 걷기: 일어나 옆으로 돌아(side) 걷다가(walk0~3) 멈추면 다시 앞을 보고 앉는다. 그림은 오른쪽을 봐서 왼쪽으로 갈 땐 뒤집음
   let wander = 0;
@@ -237,6 +243,9 @@
     if (act || mood === 'sleep') body.classList.remove('flip'); // 앞모습 그림은 뒤집지 않음
     if (act?.kind === 'eat') return show(reduced || n % 4 < 2 ? 'eat1' : 'eat2');
     if (act?.kind === 'happy') return show('happy');
+    if (act?.kind === 'worried') return show('worried');
+    if (act?.kind === 'wave') return show(reduced || n % 6 < 3 ? 'wave0' : 'wave1'); // 손 흔들기
+    if (act?.kind === 'yawn') return show('yawn');
     if (mood === 'sleep') return show('sleep');
     if (wander !== wanderTo) {
       body.classList.toggle('flip', wanderTo < wander);
@@ -260,6 +269,7 @@
       if (Math.abs(to - wander) < 24) to = Math.round(Math.random() < 0.5 ? 0 : max * dir * 0.6); // 너무 가까우면 다른 곳
       wanderTo = to;
     }
+    if (panel.hidden && !drag && Math.random() < 1 / 900) { act = { kind: 'yawn', until: Date.now() + 1400 }; return show('yawn'); } // 가끔 하품
     const c = n % 60;
     if (c >= 30 && c < 38) return show(c % 2 ? 'wag' : 'idle');
     return show(n % 25 === 0 ? 'blink' : 'idle');
@@ -378,8 +388,9 @@
     opts.append(
       button('small-btn', ui.size === 'big' ? '작게' : '크게', 'size', () => { ui.size = ui.size === 'big' ? 'small' : 'big'; resetWalk(); saveUi(); place(); renderPanel(); }),
       button('small-btn', ui.marks ? '칸 위에 안 올리기' : '칸 위에도 올리기', 'marks', () => { ui.marks = !ui.marks; saveUi(); spot(); renderPanel(); }),
+      button('small-btn', ui.talk ? '알려 주기 끄기' : '알려 주기 켜기', 'talk', () => { ui.talk = !ui.talk; saveUi(); renderPanel(); }),
       button('small-btn', '숨기기', 'hide', () => { closePanel(false); ui.hidden = true; saveUi(); place(); run(); paw.focus(); }),
-      el('span', 'muted small', '동물을 끌어서 옮겨도 돼요. 칸 위: 시간표의 지금 수업(쉬는 시간엔 다음 수업)·달력의 오늘.'),
+      el('span', 'muted small', `동물을 끌어서 옮겨도 돼요. 칸 위: 시간표의 지금 수업(쉬는 시간엔 다음 수업)${marks.cal ? '·달력의 오늘 칸' : ''}. 알려 주기: 수업 5분 전, 일정 10분 전, 11시 점심 메뉴, 마감 할 일(아침·오후 3시), 오늘 일정, 수업 끝·퇴근, 하루 한마디, 가끔 혼잣말 (수업 중엔 조용히).`),
     );
     more.append(pick, spots, opts);
     panel.append(more);
@@ -490,7 +501,47 @@
     renderSoft();
     retarget();
   }, 60 * 1000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { pet = load(); relook(); retarget(); } run(); });
+  // 알려 주기: 30초마다 지금 할 말이 있는지 본다. 같은 말은 하루 한 번 (탭이 여러 개여도: 한 말을 저장해 나눔)
+  let lastTalk = 0;
+  let memSaid = { day: '', keys: [] }; // 저장이 막힌 브라우저용
+  function talkCheck() {
+    if (!ui.talk || ui.hidden || document.hidden || !panel.hidden || drag) return;
+    const n = seoul();
+    const raw = readJson('dash-pet-talk');
+    const saved = raw && raw.day === n.ymd && Array.isArray(raw.keys) ? raw.keys : [];
+    const mem = memSaid.day === n.ymd ? memSaid.keys : [];
+    const said = [...saved, ...mem];
+    const tt = D.ttNow?.() || null;
+    const t = L.pickTalk({
+      minutes: n.minutes, weekday: n.weekday, today: n.ymd,
+      tt, todos: state.data.todos || [], events: D.calToday?.() || null, lunch: D.todayLunch?.() || null,
+    }, said);
+    if (!t) { if (!(tt?.st?.kind === 'class' && tt.st.at?.lesson)) chatter(n); return; } // 수업 중엔 혼잣말 안 함
+    if (!t.urgent && Date.now() - lastTalk < 90e3) return;
+    const keys = [...new Set([...said, t.key])].slice(-100);
+    memSaid = { day: n.ymd, keys };
+    ls.set('dash-pet-talk', JSON.stringify({ day: n.ymd, keys }));
+    lastTalk = Date.now();
+    speak(t.text, t.urgent ? 15000 : 10000, t.mood === 'wave' ? 'wave' : t.mood === 'worried' ? 'worried' : 'happy');
+  }
+  const speak = (text, ms, kind) => {
+    say(`${pet.name ? `${pet.name}: ` : ''}${text}`, ms);
+    react(kind, kind === 'wave' ? 2800 : 1600);
+  };
+  // 할 말이 없으면 가끔 혼잣말 (낮에만, 탭이 여러 개여도 25분에 한 번쯤)
+  function chatter(n) {
+    if (n.minutes < 7 * 60 + 30 || n.minutes >= 20 * 60) return;
+    const last = Number(ls.get('dash-pet-chat')) || 0;
+    const now = Date.now();
+    if (!last) { ls.set('dash-pet-chat', String(now)); return; } // 처음엔 바로 말하지 않음
+    if (now - Math.max(last, lastTalk) < 25 * 60e3 || Math.random() > 0.12) return;
+    ls.set('dash-pet-chat', String(now));
+    lastTalk = now;
+    speak(L.idleLine(pet, A.pets[pet.kind]?.kind, Math.random()), 6000, 'happy');
+  }
+  setInterval(talkCheck, 30 * 1000);
+  setTimeout(talkCheck, 5000); // 처음 열었을 때 (자료가 들어온 뒤)
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { pet = load(); relook(); retarget(); setTimeout(talkCheck, 1500); } run(); });
   listen('timetable', retarget);
   listen('todos', spot);
 
