@@ -974,6 +974,13 @@ body.docked .dock-card.drawer:hover { box-shadow: -8px 0 24px rgb(0 0 0 / .18); 
 .pip-todo em { font-style: normal; font-size: 11px; color: var(--bad); }
 .pip-todo input { margin: 0; }
 .pip-more { font-size: 12px; color: var(--muted); padding-top: 4px; }
+.pip-tip { margin-top: 10px; font-size: 11px; color: var(--muted); line-height: 1.4; padding-right: 64px; }
+/* 작은 창의 키우기 동물 (오른쪽 아래, 누르면 쓰다듬기) */
+.pip-body:has(.pet-pip:not([hidden])) { padding-bottom: 60px; }
+.pet-pip { position: fixed; right: 4px; bottom: 2px; z-index: 5; width: 64px; height: 64px; --ps: 64px; cursor: pointer; }
+.pet-pip[hidden] { display: none; }
+.pet-pip .pet-img { image-rendering: auto; }
+.pet-bubble.pet-pip-bubble { position: fixed; right: 62px; bottom: 34px; left: auto; z-index: 6; max-width: min(210px, calc(100vw - 80px)); font-size: 12px; }
 #pip-open { margin-top: 0; }
 #pip-open[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 

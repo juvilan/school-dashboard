@@ -178,6 +178,8 @@
     doc.body.className = 'pip-body';
     doc.body.append(el(doc, 'div', 'pip-root'));
     doc.body.firstChild.id = 'pip';
+    // 큰 창을 닫으면 이 창도 닫힌다 (크롬 작은 창의 규칙)
+    doc.body.append(el(doc, 'div', 'pip-tip', '큰 창은 닫지 말고 ─ (최소화)로 내려 두세요. 닫으면 이 창도 닫혀요.'));
     render();
     loadGoogle();
     w.setInterval(loadGoogle, 5 * 60e3); // 폰 등에서 바꾼 일정도 5분 안에
@@ -189,10 +191,12 @@
     }, 60e3 - (Date.now() % 60e3) + 50);
     next();
     btn.setAttribute('aria-pressed', 'true');
+    window.dispatchEvent(new CustomEvent('dash-pip', { detail: w })); // 키우기 동물이 작은 창에도 앉게
     w.addEventListener('pagehide', () => {
       if (win !== w) return;
       win = null;
       btn.setAttribute('aria-pressed', 'false');
+      window.dispatchEvent(new CustomEvent('dash-pip', { detail: null }));
     });
   }
 

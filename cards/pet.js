@@ -120,6 +120,7 @@
       i.style.backgroundImage = hug ? `url(${A.pets[pet.kind].face})` : img.style.backgroundImage;
       if (hug) for (const pw of m.querySelectorAll('.pet-paw-a, .pet-paw-b')) pw.style.backgroundImage = `url(${A.pets[pet.kind].paw})`;
     }
+    pipPaint();
     spot();
     hit.setAttribute('aria-label', `${petName()} (누르면 돌보기, 끌면 다른 구석으로)`);
   }
@@ -132,6 +133,7 @@
     // 칸 위 동물은 걷기·밥 먹기 대신 가만히·기쁨
     const mi = F[{ side: 'idle', walk0: 'idle', walk1: 'idle', walk2: 'idle', walk3: 'idle', eat1: 'happy', eat2: 'happy', wave0: 'happy', wave1: 'happy' }[name] || name] ?? 0;
     for (const k in marks) marks[k].i.style.setProperty('--f', marks[k].hug ? (FF[FACE_OF[name] || 'idle'] ?? 0) : mi);
+    if (pip) pip.img.style.setProperty('--f', mi); // 작은 창에선 걷지 않고 제자리
   }
 
   // 칸 찾기: 달력은 오늘 칸, 시간표는 이번 주를 보고 있을 때 지금 수업(쉬는 시간이면 다음 수업) 칸
@@ -210,10 +212,9 @@
 
   let sayTimer = 0;
   function say(text, ms = 3000) {
-    bubble.textContent = text;
-    bubble.hidden = !text;
-    clearTimeout(sayTimer);
-    if (text) sayTimer = setTimeout(() => { bubble.hidden = true; }, ms);
+    for (const b of pip ? [bubble, pip.bubble] : [bubble]) { b.textContent = text; b.hidden = !text; }
+    (pip?.w || window).clearTimeout?.(sayTimer);
+    if (text) sayTimer = (pip?.w || window).setTimeout(() => { bubble.hidden = true; if (pip) pip.bubble.hidden = true; }, ms); // 큰 창을 내려 두면 그 창 시계는 느려짐
   }
   let fxTimer = 0;
   function float(item) {
@@ -267,7 +268,7 @@
     if (mood === 'worried') return show(!reduced && n % 30 === 0 ? 'blink' : 'worried');
     if (reduced) return show('idle'); // 움직임 줄이기: 가만히
     // 구석 근처를 아무렇게나 왔다 갔다 (20~30초에 한 번쯤, 구석에서 최대 화면 폭의 1/4·300px)
-    if (panel.hidden && !drag && Math.random() < 1 / 120) {
+    if (panel.hidden && !drag && !document.hidden && Math.random() < 1 / 120) {
       const max = Math.min(300, window.innerWidth / 4);
       const dir = ui.corner.endsWith('r') ? -1 : 1;
       let to = Math.round((Math.random() < 0.25 ? 0 : Math.random() * max) * dir);
@@ -279,12 +280,47 @@
     if (c >= 30 && c < 38) return show(c % 2 ? 'wag' : 'idle');
     return show(n % 25 === 0 ? 'blink' : 'idle');
   }
+  // 움직임 시계: 창이 보일 때만. 큰 창을 내려 두고 작은 창만 떠 있으면 작은 창의 시계로 (가려진 창의 시계는 느려짐)
   let timer = 0;
+  let timerWin = null;
   function run() {
-    const on = !ui.hidden && !document.hidden;
-    if (on && !timer) timer = setInterval(frame, 200);
-    if (!on && timer) { clearInterval(timer); timer = 0; }
+    const want = ui.hidden ? null : pip ? pip.w : document.hidden ? null : window;
+    if (timer && timerWin !== want) { try { timerWin.clearInterval(timer); } catch { /* 닫힌 창 */ } timer = 0; timerWin = null; }
+    if (want && !timer) { timer = want.setInterval(frame, 200); timerWin = want; }
   }
+
+  // ---- 작은 창(pip.js)에도 오른쪽 아래에 앉아 있기. 누르면 쓰다듬기, 말풍선도 같이 ----
+  let pip = null; // { w, box, img, bubble }
+  function pipPaint() {
+    if (!pip) return;
+    pip.img.style.backgroundImage = `url(${A.pets[pet.kind].src})`;
+    pip.box.hidden = ui.hidden;
+    pip.box.title = `${petName()} (누르면 쓰다듬기)`;
+    shown = -1;
+  }
+  window.addEventListener('dash-pip', (e) => {
+    const w = e.detail;
+    pip = null;
+    if (w) {
+      const doc = w.document;
+      const box = doc.createElement('div');
+      box.className = 'pet-pip';
+      const pimg = doc.createElement('div');
+      pimg.className = 'pet-img';
+      box.append(pimg);
+      const pb = doc.createElement('div');
+      pb.className = 'pet-bubble pet-pip-bubble';
+      pb.hidden = true;
+      pb.setAttribute('aria-live', 'polite');
+      doc.body.append(pb, box);
+      doc.documentElement.style.setProperty('--nf', A.frames.length);
+      box.addEventListener('click', () => doAct((s) => L.pat(s, Date.now()), 'happy', 1200, null));
+      pip = { w, box, img: pimg, bubble: pb };
+      w.setInterval(() => { if (document.hidden) talkCheck(); }, 30 * 1000); // 큰 창을 내려 둔 동안 알려 주기
+      pipPaint();
+    }
+    run();
+  });
 
   function react(kind, ms) {
     act = { kind, until: Date.now() + ms };
@@ -510,7 +546,7 @@
   let lastTalk = 0;
   let memSaid = { day: '', keys: [] }; // 저장이 막힌 브라우저용
   function talkCheck() {
-    if (!ui.talk || ui.hidden || document.hidden || !panel.hidden || drag) return;
+    if (!ui.talk || ui.hidden || (document.hidden && !pip) || !panel.hidden || drag) return;
     const n = seoul();
     const raw = readJson('dash-pet-talk');
     const saved = raw && raw.day === n.ymd && Array.isArray(raw.keys) ? raw.keys : [];
