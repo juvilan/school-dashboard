@@ -42,6 +42,7 @@
     corner: CORNERS.includes(savedUi.corner) ? savedUi.corner : 'br',
     size: savedUi.size === 'small' ? 'small' : 'big',
     hidden: savedUi.hidden === true,
+    marks: savedUi.marks !== false, // 시간표 지금 칸·달력 오늘 칸에도 올라가기
   };
   const saveUi = () => ls.set('dash-pet-ui', JSON.stringify(ui));
   const snackItem = () => (A.pets[pet.kind]?.kind === 'dog' ? 'bone' : 'fish');
@@ -75,6 +76,20 @@
   paw.setAttribute('aria-label', '동물 다시 보이기');
   document.body.append(home, paw);
 
+  // 칸 위에 올라가는 작은 동물 (64px, 누를 수 없음). 칸 안은 넘치면 잘려서 화면 위 따로 띄우고 칸 위치를 따라간다
+  const mark = (label) => {
+    const m = el('div', 'pet-mark');
+    m.hidden = true;
+    m.setAttribute('aria-hidden', 'true');
+    m.title = label;
+    const i = el('div', 'pet-img');
+    m.append(i);
+    m.addEventListener('animationend', () => m.classList.remove('jump'));
+    document.body.append(m);
+    return { m, i };
+  };
+  const marks = { tt: mark('지금 수업'), cal: mark('오늘') };
+
   const itemStyle = (e, name, scale) => {
     const i = Math.max(0, A.items.indexOf(name));
     e.style.backgroundImage = `url(${A.itemsSrc})`;
@@ -88,6 +103,8 @@
     home.hidden = ui.hidden;
     paw.hidden = !ui.hidden;
     img.style.backgroundImage = `url(${A.pets[pet.kind].src})`;
+    for (const k in marks) marks[k].i.style.backgroundImage = img.style.backgroundImage;
+    spot();
     hit.setAttribute('aria-label', `${petName()} (누르면 돌보기, 끌면 다른 구석으로)`);
   }
   let shown = -1;
@@ -96,6 +113,73 @@
     if (i === shown) return;
     shown = i;
     img.style.setProperty('--f', i);
+    // 칸 위 동물은 걷기·밥 먹기 대신 가만히·기쁨
+    const mi = F[{ stepL: 'idle', stepR: 'idle', eat1: 'happy', eat2: 'happy' }[name] || name] ?? 0;
+    for (const k in marks) marks[k].i.style.setProperty('--f', mi);
+  }
+
+  // 칸 찾기: 달력은 오늘 칸, 시간표는 이번 주를 보고 있을 때 지금 수업(쉬는 시간이면 다음 수업) 칸
+  // 몇 교시 칸인지는 1분마다·시간표가 바뀔 때만 정하고, 스크롤·크기 바뀜에는 위치만 다시 잰다
+  let ttSpot = null; // { wd, p }
+  function retarget() {
+    const st = window.Dash.ttNow?.()?.st;
+    const p = st?.kind === 'class' ? st.at?.period : ['before', 'break', 'lunch'].includes(st?.kind) ? st.next?.period : null;
+    ttSpot = p ? { wd: seoul().weekday, p } : null;
+    spot();
+  }
+  function targetOf(k) {
+    if (k === 'cal') return document.querySelector('#cal-grid .cal-cell.today');
+    const grid = document.getElementById('tt-grid');
+    if (!ttSpot || !grid?.querySelector('.tt-day.today')) return null;
+    return grid.querySelector(`.tt-cell[data-wd="${ttSpot.wd}"][data-p="${ttSpot.p}"]`);
+  }
+  // 칸의 윗변이 보이는지: 카드와 (주간 달력처럼) 따로 스크롤되는 칸 묶음 안, 위쪽 고정 막대 아래
+  const inside = (r, box) => r.top >= box.top - 2 && r.top <= box.bottom - 8 && r.left + r.width / 2 >= box.left && r.left + r.width / 2 <= box.right;
+  function seen(cell, r) {
+    if (!r || r.width <= 0 || r.height <= 0) return false;
+    if (!inside(r, { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth })) return false;
+    for (const box of [cell.closest('.cal-grid'), cell.closest('.card')]) if (box && !inside(r, box.getBoundingClientRect())) return false;
+    const bar = document.querySelector('.top');
+    if (bar && /sticky|fixed/.test(getComputedStyle(bar).position) && r.top - 46 < bar.getBoundingClientRect().bottom) return false;
+    return true;
+  }
+  // 칸 윗변에 걸터앉게: 아래쪽 18px 만 칸에 들어감. 칸이 안 보이면(접힘·스크롤 밖) 숨김
+  function spotNow() {
+    spotQueued = false;
+    const on = ui.marks && !ui.hidden;
+    for (const k in marks) {
+      const { m } = marks[k];
+      const cell = on ? targetOf(k) : null;
+      const r = cell?.getBoundingClientRect();
+      const ok = cell ? seen(cell, r) : false;
+      m.hidden = !ok;
+      if (!ok) continue;
+      const left = k === 'cal' ? r.right - 58 : r.left + r.width / 2 - 32;
+      m.style.left = `${Math.round(left)}px`;
+      m.style.top = `${Math.round(r.top - 64 + 18)}px`;
+    }
+  }
+  let spotQueued = false;
+  function spot() {
+    if (spotQueued) return;
+    spotQueued = true;
+    requestAnimationFrame(spotNow);
+  }
+  window.addEventListener('resize', spot);
+  document.addEventListener('scroll', spot, { capture: true, passive: true });
+  const watch = new MutationObserver(retarget); // 교시가 바뀌거나 다시 그리면 칸부터 다시 정함
+  for (const id of ['tt-grid', 'cal-grid']) {
+    const g = document.getElementById(id);
+    if (g) watch.observe(g, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+  }
+  for (const id of ['card-tt', 'card-cal']) { // 칸 접기·펴기
+    const c = document.getElementById(id);
+    if (c) watch.observe(c, { attributes: true, attributeFilter: ['class'] });
+  }
+  // 다른 카드가 늘거나 줄어 칸이 밀릴 때 (급식·오늘 카드가 늦게 채워짐, 접기 등)
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(spot);
+    for (const e of [document.body, document.querySelector('main.layout'), document.getElementById('card-tt'), document.getElementById('card-cal'), document.getElementById('tt-grid'), document.getElementById('cal-grid')]) if (e) ro.observe(e);
   }
 
   let sayTimer = 0;
@@ -170,6 +254,7 @@
       body.classList.remove('jump');
       void body.offsetWidth;
       body.classList.add('jump');
+      for (const k in marks) { const { m } = marks[k]; m.classList.remove('jump'); void m.offsetWidth; m.classList.add('jump'); }
     }
   }
   body.addEventListener('animationend', () => body.classList.remove('jump'));
@@ -235,7 +320,7 @@
     const more = el('details', 'pet-more');
     more.open = moreOpen;
     more.addEventListener('toggle', () => { moreOpen = more.open; });
-    const sum = el('summary', 'small', '친구 바꾸기 · 자리 · 크기 · 숨기기');
+    const sum = el('summary', 'small', '친구 바꾸기 · 자리 · 크기 · 칸 위 · 숨기기');
     sum.dataset.pk = 'more';
     more.append(sum);
     const pick = el('div', 'pet-pick');
@@ -265,8 +350,9 @@
     const opts = el('div', 'pet-opts');
     opts.append(
       button('small-btn', ui.size === 'big' ? '작게' : '크게', 'size', () => { ui.size = ui.size === 'big' ? 'small' : 'big'; resetWalk(); saveUi(); place(); renderPanel(); }),
+      button('small-btn', ui.marks ? '칸 위에 안 올리기' : '칸 위에도 올리기', 'marks', () => { ui.marks = !ui.marks; saveUi(); spot(); renderPanel(); }),
       button('small-btn', '숨기기', 'hide', () => { closePanel(false); ui.hidden = true; saveUi(); place(); run(); paw.focus(); }),
-      el('span', 'muted small', '동물을 끌어서 옮겨도 돼요.'),
+      el('span', 'muted small', '동물을 끌어서 옮겨도 돼요. 칸 위: 시간표의 지금 수업(쉬는 시간엔 다음 수업)·달력의 오늘.'),
     );
     more.append(pick, spots, opts);
     panel.append(more);
@@ -373,12 +459,16 @@
     if (pet.hunger >= 25) hungrySaid = false;
     else if (!hungrySaid && !ui.hidden && !document.hidden) { say('배고파요…', 5000); hungrySaid = true; }
     renderSoft();
+    retarget();
   }, 60 * 1000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { pet = load(); relook(); } run(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { pet = load(); relook(); retarget(); } run(); });
+  listen('timetable', retarget);
+  listen('todos', spot);
 
   place();
   save();
   relook();
   show('idle');
+  retarget();
   run();
 })();

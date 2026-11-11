@@ -1119,5 +1119,8 @@ button.pet-paw:hover { opacity: 1; }
 .pet-paw.br, .pet-paw.tr { right: 14px; }
 .pet-paw.bl, .pet-paw.tl { left: 14px; }
 .pet-paw.tr, .pet-paw.tl { top: 52px; bottom: auto; }
-@media (prefers-reduced-motion: reduce) { .pet-body.jump, .pet-fx.go, .pet-home.sleeping .pet-z { animation: none; } }
-@media print { .pet-home, .pet-paw { display: none !important; } }
+.pet-mark { position: fixed; z-index: 44; width: 64px; height: 64px; --ps: 64px; pointer-events: none; }
+.pet-mark[hidden] { display: none; }
+.pet-mark.jump { animation: pet-jump .8s ease-out; }
+@media (prefers-reduced-motion: reduce) { .pet-body.jump, .pet-fx.go, .pet-home.sleeping .pet-z, .pet-mark.jump { animation: none; } }
+@media print { .pet-home, .pet-paw, .pet-mark { display: none !important; } }
