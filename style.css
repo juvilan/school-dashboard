@@ -825,6 +825,8 @@ button.linklike { background: none; border: 0; padding: 0; color: var(--accent);
   #card-ai .ai-body { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
   #card-ai .ai-list { flex: 1 1 auto; max-height: none; min-height: 120px; }
   #card-ai .ai-body > :not(.ai-list) { flex: none; }
+  /* 키우기 동물이 아래 구석에 앉아 있으면 그 기둥 아래를 비워 둠 */
+  body.pet-room-r .col-right, body.pet-room-l .col-left { padding-bottom: calc(var(--pet-room, 96px) - 4px); }
 }
 /* 배포판(웹): 달력 칸은 좁히고 오른쪽(클립보드·포스트잇·AI) 칸을 넓힌다 */
 @media (min-width: 1200px) {

@@ -110,6 +110,11 @@
     paw.hidden = !ui.hidden;
     img.style.backgroundImage = `url(${A.pets[pet.kind].src})`;
     document.documentElement.style.setProperty('--nf', A.frames.length);
+    // 아래쪽 구석에 있으면 그쪽 기둥 아래를 동물 크기만큼 비워 둔다 (AI 대화 입력칸 등을 가리지 않게)
+    const room = ui.hidden || !/^b/.test(ui.corner) ? '' : ui.corner === 'br' ? 'r' : 'l';
+    document.body.classList.toggle('pet-room-r', room === 'r');
+    document.body.classList.toggle('pet-room-l', room === 'l');
+    document.documentElement.style.setProperty('--pet-room', `${ui.size === 'small' ? 64 : 96}px`);
     for (const k in marks) {
       const { m, i, hug } = marks[k];
       i.style.backgroundImage = hug ? `url(${A.pets[pet.kind].face})` : img.style.backgroundImage;
