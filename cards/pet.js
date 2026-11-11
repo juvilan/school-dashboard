@@ -106,6 +106,7 @@
     home.hidden = ui.hidden;
     paw.hidden = !ui.hidden;
     img.style.backgroundImage = `url(${A.pets[pet.kind].src})`;
+    document.documentElement.style.setProperty('--nf', A.frames.length);
     for (const k in marks) {
       const { m, i, hug } = marks[k];
       i.style.backgroundImage = hug ? `url(${A.pets[pet.kind].face})` : img.style.backgroundImage;
@@ -121,7 +122,7 @@
     shown = i;
     img.style.setProperty('--f', i);
     // 칸 위 동물은 걷기·밥 먹기 대신 가만히·기쁨
-    const mi = F[{ stepL: 'idle', stepR: 'idle', eat1: 'happy', eat2: 'happy' }[name] || name] ?? 0;
+    const mi = F[{ side: 'idle', walk0: 'idle', walk1: 'idle', walk2: 'idle', walk3: 'idle', eat1: 'happy', eat2: 'happy' }[name] || name] ?? 0;
     for (const k in marks) marks[k].i.style.setProperty('--f', marks[k].hug ? (FF[FACE_OF[name] || 'idle'] ?? 0) : mi);
   }
 
@@ -224,28 +225,40 @@
   }
   let act = null; // { kind: 'eat' | 'happy', until }
   let n = 0;
+  // 걷기: 일어나 옆으로 돌아(side) 걷다가(walk0~3) 멈추면 다시 앞을 보고 앉는다. 그림은 오른쪽을 봐서 왼쪽으로 갈 땐 뒤집음
   let wander = 0;
   let wanderTo = 0;
-  function stopWalk() { wanderTo = wander; }
+  let walkN = 0;
+  let settle = false;
+  function stopWalk() { if (wanderTo !== wander) settle = true; wanderTo = wander; }
   function frame() {
     n++;
     if (act && Date.now() > act.until) { act = null; home.classList.toggle('sleeping', mood === 'sleep'); }
+    if (act || mood === 'sleep') body.classList.remove('flip'); // 앞모습 그림은 뒤집지 않음
     if (act?.kind === 'eat') return show(reduced || n % 4 < 2 ? 'eat1' : 'eat2');
     if (act?.kind === 'happy') return show('happy');
     if (mood === 'sleep') return show('sleep');
     if (wander !== wanderTo) {
-      const step = ui.size === 'small' ? 2 : 4;
+      body.classList.toggle('flip', wanderTo < wander);
+      if (walkN++ === 0) return show('side'); // 일어나기
+      const step = ui.size === 'small' ? 2 : 3;
       wander += Math.sign(wanderTo - wander) * Math.min(step, Math.abs(wanderTo - wander));
       body.style.translate = wander ? `${wander}px 0` : '';
-      return show(n % 2 ? 'stepL' : 'stepR');
+      if (wander === wanderTo) settle = true;
+      return show(`walk${walkN % 4}`);
     }
+    walkN = 0;
+    if (settle) { settle = false; return show('side'); } // 멈춰 서기 → 다음 프레임에 앉음
+    body.classList.remove('flip');
     if (mood === 'worried') return show(!reduced && n % 30 === 0 ? 'blink' : 'worried');
     if (reduced) return show('idle'); // 움직임 줄이기: 가만히
-    // 가끔 옆으로 몇 걸음 (1분에 한 번쯤)
-    if (panel.hidden && !drag && Math.random() < 1 / 300) {
-      const max = (ui.size === 'small' ? 64 : 128) * 0.8;
+    // 구석 근처를 아무렇게나 왔다 갔다 (20~30초에 한 번쯤, 구석에서 최대 화면 폭의 1/4·300px)
+    if (panel.hidden && !drag && Math.random() < 1 / 120) {
+      const max = Math.min(300, window.innerWidth / 4);
       const dir = ui.corner.endsWith('r') ? -1 : 1;
-      wanderTo = Math.round((Math.random() < 0.4 ? 0 : Math.random() * max) * dir);
+      let to = Math.round((Math.random() < 0.25 ? 0 : Math.random() * max) * dir);
+      if (Math.abs(to - wander) < 24) to = Math.round(Math.random() < 0.5 ? 0 : max * dir * 0.6); // 너무 가까우면 다른 곳
+      wanderTo = to;
     }
     const c = n % 60;
     if (c >= 30 && c < 38) return show(c % 2 ? 'wag' : 'idle');
@@ -375,6 +388,8 @@
   // 저절로 다시 그릴 때(1분마다·할 일 변경·다른 탭)는 창 안을 쓰고 있으면 건드리지 않는다
   const renderSoft = () => { if (!panel.contains(document.activeElement)) renderPanel(); };
   function openPanel() {
+    stopWalk();
+    panel.style.translate = wander ? `${wander}px 0` : '';
     panel.hidden = false;
     hit.setAttribute('aria-expanded', 'true');
     stopWalk();
@@ -387,7 +402,7 @@
     hit.setAttribute('aria-expanded', 'false');
     if (refocus || inside) hit.focus();
   }
-  function resetWalk() { wander = wanderTo = 0; body.style.translate = ''; }
+  function resetWalk() { wander = wanderTo = 0; walkN = 0; settle = false; body.style.translate = ''; panel.style.translate = ''; body.classList.remove('flip'); }
   function moveTo(c) { ui.corner = c; resetWalk(); saveUi(); place(); renderPanel(); }
 
   // 누르면 열고 닫기, 끌면 가장 가까운 구석으로

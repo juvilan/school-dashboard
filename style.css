@@ -1060,7 +1060,7 @@ body.docked .pet-home.br, body.docked .pet-home.tr, body.docked .pet-paw.br, bod
 @keyframes pet-jump { 0%, 100% { transform: translateY(0); } 30% { transform: translateY(-18%); } 55% { transform: translateY(0); } 72% { transform: translateY(-6%); } }
 .pet-img {
   position: absolute; inset: 0; pointer-events: none;
-  background-repeat: no-repeat; background-size: calc(var(--ps) * 10) var(--ps);
+  background-repeat: no-repeat; background-size: calc(var(--ps) * var(--nf, 10)) var(--ps);
   background-position: calc(var(--f, 0) * var(--ps) * -1) 0;
   image-rendering: pixelated; filter: drop-shadow(0 2px 2px rgb(0 0 0 / .18));
 }
@@ -1108,7 +1108,8 @@ button.pet-hit:focus-visible { outline: 2px solid var(--accent); outline-offset:
 .pet-pick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 6px 0; }
 .pet-pick-b { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 0; padding: 4px 0; background: transparent; color: var(--text); border: 1px solid var(--line); border-radius: 8px; font-size: 11px; }
 .pet-pick-b.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
-.pet-pick-img { width: 48px; height: 48px; background-size: 480px 48px; background-repeat: no-repeat; image-rendering: pixelated; }
+.pet-body.flip .pet-img { transform: scaleX(-1); }
+.pet-pick-img { width: 48px; height: 48px; background-size: calc(48px * var(--nf, 10)) 48px; background-repeat: no-repeat; image-rendering: pixelated; }
 .pet-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .pet-opts .small-btn { margin: 0; }
 .pet-opts + .pet-opts { margin-top: 6px; }
