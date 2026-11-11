@@ -646,7 +646,13 @@
   hit.addEventListener('pointercancel', endDrag);
   hit.addEventListener('click', () => {
     if (dragged) { dragged = false; return; }
-    if (panel.hidden) openPanel(); else closePanel(false);
+    if (!panel.hidden) { closePanel(false); return; }
+    openPanel();
+    // 친구들처럼 대답도 함 (돌보기 창은 위에, 말풍선은 동물 바로 위)
+    const lines = A.pets[pet.kind]?.kind === 'dog' ? ['멍! 뭐 해 줄까요?', '저 불렀어요?', '놀아 주세요!'] : ['냥~ 뭐 해 줄까요?', '저 불렀어요?', '여기 있어요!'];
+    // 위쪽 구석이면 말풍선이 창을 가리고, 이미 떠 있는 말(수업 알림 등)은 덮지 않음
+    if (/^b/.test(ui.corner) && bubble.hidden) say(`${pet.name ? `${pet.name}: ` : ''}${lines[Math.floor(Math.random() * lines.length)]}`, 2500);
+    react('happy', 900);
   });
   document.addEventListener('pointerdown', (e) => { if (!panel.hidden && !home.contains(e.target)) closePanel(false); }, true);
   document.addEventListener('keydown', (e) => {
