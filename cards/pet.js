@@ -40,8 +40,10 @@
   // 개인판: 같이 사는 친구들도 옆에 나란히 앉는다 (배·기분·간식은 함께 씀). 처음 한 번 우리 집 셋으로 맞춰 둠
   const FAMILY = D.edition !== 'teacher';
   // 맞춰 둔 표시는 따로도 적어 둔다 (옛 버전 탭이 저장하면서 friends 를 지워도 처음 설정이 다시 돌지 않게)
-  if (FAMILY && !pet.famSet && !ls.get('dash-pet-fam')) update((s) => ({ s: { ...s, kind: 'russian', name: '콩이', friends: [{ kind: 'russianGirl', name: '보리' }, { kind: 'ragdoll', name: '밤이' }], famSet: true } }));
-  if (FAMILY) ls.set('dash-pet-fam', '1');
+  if (FAMILY && !pet.famSet && !ls.get('dash-pet-fam')) update((s) => ({ s: { ...s, kind: 'russian', name: '콩이', sex: 'm', friends: [{ kind: 'russian', sex: 'f', name: '보리' }, { kind: 'ragdoll', sex: 'f', name: '밤이' }], famSet: true } }));
+  // 암수가 생기기 전에 맞춘 집: 밤이도 암컷으로
+  if (FAMILY && ls.get('dash-pet-fam') === '1') update((s) => ({ s: { ...s, friends: s.friends.map((f) => (f.kind === 'ragdoll' && f.name === '밤이' ? { ...f, sex: 'f' } : f)) } }));
+  if (FAMILY) ls.set('dash-pet-fam', '2');
   const friends = () => (FAMILY ? pet.friends.filter((f) => A.pets[f.kind]) : []);
   const friendName = (f) => f.name || A.pets[f.kind]?.name || '친구';
   const savedUi = readJson('dash-pet-ui') || {};
@@ -53,6 +55,8 @@
     talk: savedUi.talk !== false, // 수업·일정·급식·마감·퇴근을 말풍선으로 알려 주기
   };
   const saveUi = () => ls.set('dash-pet-ui', JSON.stringify(ui));
+  // 그림: 암수에 따라 (암컷은 목걸이, 말티즈 수컷은 리본 없음)
+  const artOf = (p) => A.pets[L.artKey(p.kind, p.sex)] || A.pets[p.kind];
   const snackItem = () => (A.pets[pet.kind]?.kind === 'dog' ? 'bone' : 'fish');
   const petName = () => pet.name || A.pets[pet.kind]?.name || '친구';
 
@@ -102,7 +106,7 @@
   const marks = { tt: mark('지금 수업', 'tt') };
   if (D.edition === 'teacher') marks.cal = mark('오늘', null);
   const FF = Object.fromEntries((A.faceFrames || []).map((n, i) => [n, i]));
-  const FACE_OF = { blink: 'blink', happy: 'happy', eat1: 'happy', eat2: 'happy', wave0: 'happy', wave1: 'happy', worried: 'worried', sleep: 'sleep', yawn: 'sleep' };
+  const FACE_OF = { groom0: 'happy', groom1: 'happy', blink: 'blink', happy: 'happy', eat1: 'happy', eat2: 'happy', wave0: 'happy', wave1: 'happy', worried: 'worried', sleep: 'sleep', yawn: 'sleep' };
 
   const itemStyle = (e, name, scale) => {
     const i = Math.max(0, A.items.indexOf(name));
@@ -116,7 +120,7 @@
     home.classList.toggle('small', ui.size === 'small');
     home.hidden = ui.hidden;
     paw.hidden = !ui.hidden;
-    img.style.backgroundImage = `url(${A.pets[pet.kind].src})`;
+    img.style.backgroundImage = `url(${artOf(pet).src})`;
     paintCrew();
     document.documentElement.style.setProperty('--nf', A.frames.length);
     // 아래쪽 구석에 있으면 그쪽 기둥 아래를 동물 크기만큼 비워 둔다 (AI 대화 입력칸 등을 가리지 않게)
@@ -126,8 +130,8 @@
     document.documentElement.style.setProperty('--pet-room', `${ui.size === 'small' ? 64 : 96}px`);
     for (const k in marks) {
       const { m, i, hug } = marks[k];
-      i.style.backgroundImage = hug ? `url(${A.pets[pet.kind].face})` : img.style.backgroundImage;
-      if (hug) for (const pw of m.querySelectorAll('.pet-paw-a, .pet-paw-b')) pw.style.backgroundImage = `url(${A.pets[pet.kind].paw})`;
+      i.style.backgroundImage = hug ? `url(${artOf(pet).face})` : img.style.backgroundImage;
+      if (hug) for (const pw of m.querySelectorAll('.pet-paw-a, .pet-paw-b')) pw.style.backgroundImage = `url(${artOf(pet).paw})`;
     }
     pipPaint();
     spot();
@@ -150,7 +154,7 @@
     }
     list.forEach((f, j) => {
       const c = crew.children[j];
-      c.firstChild.style.backgroundImage = `url(${A.pets[f.kind].src})`;
+      c.firstChild.style.backgroundImage = `url(${artOf(f).src})`;
       c.lastChild.setAttribute('aria-label', `${friendName(f)} (누르면 쓰다듬기)`);
       c.lastChild.title = friendName(f);
       c.dataset.f = '';
@@ -161,8 +165,12 @@
   // 가만히 있을 땐 친구마다 깜빡임·꼬리 박자를 달리, 나머지(걷기·밥·기쁨·잠)는 같이
   function crewFrames(name) {
     return friends().map((_, j) => {
-      if (!['idle', 'blink', 'wag'].includes(name) || reduced) return name;
+      if (!['idle', 'blink', 'wag', 'yawn', 'groom0', 'groom1', 'look', 'lookR'].includes(name)) return name;
+      if (reduced) return 'idle';
       const o = n + (j + 1) * 17, c = o % 60;
+      const g = (n + (j + 1) * 151) % 900; // 친구도 저마다 가끔 세수·두리번 (몇 분에 한 번)
+      if (g < 12) return g % 4 < 2 ? 'groom0' : 'groom1';
+      if (g >= 450 && g < 459) return g < 455 ? 'look' : 'lookR';
       if (c >= 30 && c < 38) return c % 2 ? 'wag' : 'idle';
       return o % 25 === 0 ? 'blink' : 'idle';
     });
@@ -316,6 +324,8 @@
     if (act?.kind === 'worried') return show('worried');
     if (act?.kind === 'wave') return show(reduced || n % 6 < 3 ? 'wave0' : 'wave1'); // 손 흔들기
     if (act?.kind === 'yawn') return show('yawn');
+    if (act?.kind === 'groom') return show(n % 4 < 2 ? 'groom0' : 'groom1'); // 세수
+    if (act?.kind === 'look') return show(act.until - Date.now() > 900 ? 'look' : 'lookR'); // 두리번
     if (mood === 'sleep') return show('sleep');
     if (wander !== wanderTo) {
       body.classList.toggle('flip', wanderTo < wander);
@@ -340,6 +350,8 @@
       wanderTo = to;
     }
     if (panel.hidden && !drag && Math.random() < 1 / 900) { act = { kind: 'yawn', until: Date.now() + 1400 }; return show('yawn'); } // 가끔 하품
+    if (panel.hidden && !drag && Math.random() < 1 / 700) { act = { kind: 'groom', until: Date.now() + 2400 }; return show('groom0'); } // 가끔 세수
+    if (panel.hidden && !drag && Math.random() < 1 / 400) { act = { kind: 'look', until: Date.now() + 1800 }; return show('look'); } // 가끔 두리번
     const c = n % 60;
     if (c >= 30 && c < 38) return show(c % 2 ? 'wag' : 'idle');
     return show(n % 25 === 0 ? 'blink' : 'idle');
@@ -357,16 +369,16 @@
   let pip = null; // { w, box, img, bubble, crew: [친구 그림] }
   function pipPaint() {
     if (!pip) return;
-    pip.img.style.backgroundImage = `url(${A.pets[pet.kind].src})`;
+    pip.img.style.backgroundImage = `url(${artOf(pet).src})`;
     const list = friends();
-    const sig = list.map((f) => f.kind).join();
+    const sig = list.map((f) => L.artKey(f.kind, f.sex)).join();
     if (sig !== pip.sig) {
       pip.sig = sig;
       for (const c of pip.crew.splice(0)) c.remove();
       list.forEach((f, j) => {
         const c = pip.w.document.createElement('div');
         c.className = 'pet-img';
-        c.style.backgroundImage = `url(${A.pets[f.kind].src})`;
+        c.style.backgroundImage = `url(${artOf(f).src})`;
         c.addEventListener('click', (e) => { e.stopPropagation(); patFriend(j); });
         pip.box.append(c);
         pip.crew.push(c);
@@ -495,10 +507,22 @@
       b.setAttribute('aria-label', A.pets[k].name);
       b.setAttribute('aria-pressed', String(k === pet.kind));
       const face = el('span', 'pet-pick-img');
-      face.style.backgroundImage = `url(${A.pets[k].src})`;
+      face.style.backgroundImage = `url(${artOf({ kind: k, sex: pet.sex }).src})`;
       b.append(face, el('span', 'small', A.pets[k].name));
       pick.append(b);
     }
+    const sexRow = el('div', 'pet-opts');
+    sexRow.append(el('span', 'muted small', '성별'));
+    for (const [x, label] of [['m', '수컷'], ['f', '암컷']]) {
+      const b = button(`small-btn pet-spot${pet.sex === x ? ' on' : ''}`, label, `sex-${x}`, () => {
+        if (pet.sex === x) return;
+        update((s) => ({ s: { ...s, sex: x } }));
+        place(); shown = -1; frame(); renderPanel();
+      });
+      b.setAttribute('aria-pressed', String(pet.sex === x));
+      sexRow.append(b);
+    }
+    sexRow.append(el('span', 'muted small', pet.kind === 'maltese' ? '암컷은 리본' : '암컷은 목걸이'));
     const spots = el('div', 'pet-opts');
     spots.append(el('span', 'muted small', '자리'));
     for (const [c, label] of [['tl', '↖'], ['tr', '↗'], ['bl', '↙'], ['br', '↘']]) {
@@ -516,7 +540,7 @@
       el('span', 'muted small', `동물을 끌어서 옮겨도 돼요. 칸 위: 시간표의 지금 수업(쉬는 시간엔 다음 수업)${marks.cal ? '·달력의 오늘 칸' : ''}. 알려 주기: 수업 5분 전, 일정 10분 전, 11시 점심 메뉴, 마감 할 일(아침·오후 3시), 오늘 일정, 수업 끝·퇴근, 하루 한마디, 가끔 혼잣말 (수업 중엔 조용히).`),
     );
     if (FAMILY) more.append(famBox());
-    more.append(pick, spots, opts);
+    more.append(pick, sexRow, spots, opts);
     panel.append(more);
     if (focusKey) panel.querySelector(`[data-pk="${focusKey}"]`)?.focus();
   }
@@ -544,7 +568,7 @@
       const kind = el('select', 'pet-fam-kind');
       kind.dataset.pk = `fkind-${j}`;
       kind.setAttribute('aria-label', `친구 ${j + 1} 종류`);
-      for (const k of L.FRIEND_KINDS) {
+      for (const k of L.KINDS) {
         if (!A.pets[k]) continue;
         const o = el('option', null, A.pets[k].name);
         o.value = k;
@@ -552,10 +576,15 @@
         kind.append(o);
       }
       kind.addEventListener('change', () => setF((fs) => { if (fs[j]) fs[j].kind = kind.value; return fs; }));
-      row.append(nm, kind, button('ghost small-btn', '빼기', `fdel-${j}`, () => setF((fs) => fs.filter((_, i) => i !== j))));
+      const sx = el('select', 'pet-fam-kind pet-fam-sex');
+      sx.dataset.pk = `fsex-${j}`;
+      sx.setAttribute('aria-label', `친구 ${j + 1} 성별`);
+      for (const [x, label] of [['m', '수컷'], ['f', '암컷']]) { const o = el('option', null, label); o.value = x; o.selected = f.sex === x; sx.append(o); }
+      sx.addEventListener('change', () => setF((fs) => { if (fs[j]) fs[j].sex = sx.value; return fs; }));
+      row.append(nm, kind, sx, button('ghost small-btn', '빼기', `fdel-${j}`, () => setF((fs) => fs.filter((_, i) => i !== j))));
       box.append(row);
     });
-    if (pet.friends.length < L.FRIEND_MAX) box.append(button('small-btn', '친구 더하기', 'fadd', () => setF((fs) => [...fs, { kind: 'ragdoll', name: '' }])));
+    if (pet.friends.length < L.FRIEND_MAX) box.append(button('small-btn', '친구 더하기', 'fadd', () => setF((fs) => [...fs, { kind: 'ragdoll', sex: 'f', name: '' }])));
     return box;
   }
   // 저절로 다시 그릴 때(1분마다·할 일 변경·다른 탭)는 창 안을 쓰고 있으면 건드리지 않는다
@@ -645,13 +674,19 @@
   // 다른 탭이 바꾸면 따라감
   window.addEventListener('storage', (e) => {
     if (e.key !== 'dash-pet' || !stored) return;
-    const kind = pet.kind;
+    const kind = L.artKey(pet.kind, pet.sex);
     const prev = pet;
     pet = load();
     // 옛 버전 탭이 친구 칸을 모르고 저장했으면 이 탭의 친구를 다시 적어 둠
     if (FAMILY && prev.famSet && !pet.famSet) { pet = { ...pet, friends: prev.friends, famSet: true }; save(); }
+    // 옛 버전 탭은 암수 칸을 모르고 지움: 이 탭이 알던 암수로 되돌려 적어 둠
+    const raw = readJson('dash-pet');
+    if (raw && (!('sex' in raw) || (Array.isArray(raw.friends) && raw.friends.some((f) => f && !('sex' in f))))) {
+      pet = { ...pet, sex: raw.kind === prev.kind ? prev.sex : pet.sex, friends: pet.friends.map((f, j) => (prev.friends[j]?.kind === f.kind && !('sex' in (raw.friends?.[j] || {})) ? { ...f, sex: prev.friends[j].sex } : f)) };
+      save();
+    }
     relook();
-    if (kind !== pet.kind) shown = -1;
+    if (kind !== L.artKey(pet.kind, pet.sex)) shown = -1;
     place();
     renderSoft();
   });
